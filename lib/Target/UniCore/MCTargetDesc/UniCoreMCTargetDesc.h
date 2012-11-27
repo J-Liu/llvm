@@ -27,4 +27,8 @@ extern Target TheUniCoreTarget;
 #define GET_REGINFO_ENUM
 #include "UniCoreGenRegisterInfo.inc"
 
+// Defines symbolic names for the UniCore instructions.
+#define GET_INSTRINFO_ENUM
+#include "UniCoreGenInstrInfo.inc"
+
 #endif

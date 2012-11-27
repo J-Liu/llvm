@@ -12,13 +12,24 @@
 //===----------------------------------------------------------------------===//
 
 #include "UniCoreMCTargetDesc.h"
+#include "llvm/MC/MCCodeGenInfo.h"
+#include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Support/TargetRegistry.h"
+
+#define GET_INSTRINFO_MC_DESC
+#include "UniCoreGenInstrInfo.inc"
 
 #define GET_REGINFO_MC_DESC
 #include "UniCoreGenRegisterInfo.inc"
 
 using namespace llvm;
+
+static MCInstrInfo *createUniCoreMCInstrInfo() {
+  MCInstrInfo *X = new MCInstrInfo();
+  InitUniCoreMCInstrInfo(X);
+  return X;
+}
 
 static MCRegisterInfo *createUniCoreMCRegisterInfo(StringRef TT) {
   MCRegisterInfo *X = new MCRegisterInfo();
@@ -27,6 +38,9 @@ static MCRegisterInfo *createUniCoreMCRegisterInfo(StringRef TT) {
 }
 
 extern "C" void LLVMInitializeUniCoreTargetMC() {
+  // Register the MC instruction info.
+  TargetRegistry::RegisterMCInstrInfo(TheUniCoreTarget, createUniCoreMCInstrInfo);
+
   // Register the MC register info.
   TargetRegistry::RegisterMCRegInfo(TheUniCoreTarget,
                                     createUniCoreMCRegisterInfo);
