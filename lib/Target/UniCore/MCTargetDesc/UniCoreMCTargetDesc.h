@@ -22,4 +22,9 @@ class Target;
 extern Target TheUniCoreTarget;
 } // End llvm namespace
 
+// Defines symbolic names for UniCore registers.
+// This defines a mapping from register name to register number.
+#define GET_REGINFO_ENUM
+#include "UniCoreGenRegisterInfo.inc"
+
 #endif

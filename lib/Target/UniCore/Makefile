@@ -11,7 +11,7 @@ LIBRARYNAME = LLVMUniCoreCodeGen
 TARGET = UniCore
 
 # Make sure that tblgen is run, first thing.
-BUILT_SOURCES = 
+BUILT_SOURCES = UniCoreGenRegisterInfo.inc
 
 DIRS = TargetInfo MCTargetDesc
 

@@ -20,6 +20,11 @@
 
 namespace llvm {
   class UniCoreTargetMachine;
+  class FunctionPass;
+  class formatted_raw_ostream;
+
+  FunctionPass *createUniCoreISelDag(UniCoreTargetMachine &TM,
+                                     CodeGenOpt::Level OptLevel);
 } // end namespace llvm;
 
 #endif
