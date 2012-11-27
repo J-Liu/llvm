@@ -31,4 +31,7 @@ extern Target TheUniCoreTarget;
 #define GET_INSTRINFO_ENUM
 #include "UniCoreGenInstrInfo.inc"
 
+#define GET_SUBTARGETINFO_ENUM
+#include "UniCoreGenSubtargetInfo.inc"
+
 #endif

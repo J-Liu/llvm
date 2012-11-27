@@ -15,10 +15,14 @@
 #include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/TargetRegistry.h"
 
 #define GET_INSTRINFO_MC_DESC
 #include "UniCoreGenInstrInfo.inc"
+
+#define GET_SUBTARGETINFO_MC_DESC
+#include "UniCoreGenSubtargetInfo.inc"
 
 #define GET_REGINFO_MC_DESC
 #include "UniCoreGenRegisterInfo.inc"
@@ -37,6 +41,13 @@ static MCRegisterInfo *createUniCoreMCRegisterInfo(StringRef TT) {
   return X;
 }
 
+static MCSubtargetInfo *createUniCoreMCSubtargetInfo(StringRef TT, StringRef CPU,
+                                                      StringRef FS) {
+  MCSubtargetInfo *X = new MCSubtargetInfo();
+  InitUniCoreMCSubtargetInfo(X, TT, CPU, FS);
+  return X;
+}
+
 extern "C" void LLVMInitializeUniCoreTargetMC() {
   // Register the MC instruction info.
   TargetRegistry::RegisterMCInstrInfo(TheUniCoreTarget, createUniCoreMCInstrInfo);
@@ -44,4 +55,8 @@ extern "C" void LLVMInitializeUniCoreTargetMC() {
   // Register the MC register info.
   TargetRegistry::RegisterMCRegInfo(TheUniCoreTarget,
                                     createUniCoreMCRegisterInfo);
+
+  // Register the MC subtarget info.
+  TargetRegistry::RegisterMCSubtargetInfo(TheUniCoreTarget,
+                                          createUniCoreMCSubtargetInfo);
 }

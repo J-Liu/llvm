@@ -12,7 +12,8 @@ TARGET = UniCore
 
 # Make sure that tblgen is run, first thing.
 BUILT_SOURCES = UniCoreGenRegisterInfo.inc \
-                UniCoreGenInstrInfo.inc
+                UniCoreGenInstrInfo.inc \
+                UniCoreGenSubtargetInfo.inc
 
 DIRS = TargetInfo MCTargetDesc
 
