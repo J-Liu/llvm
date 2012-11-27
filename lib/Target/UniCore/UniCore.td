@@ -21,6 +21,7 @@ include "llvm/Target/Target.td"
 
 include "UniCoreRegisterInfo.td"
 include "UniCoreInstrInfo.td"
+include "UniCoreSchedule.td"
 
 //===----------------------------------------------------------------------===//
 // UniCore processors supported.
