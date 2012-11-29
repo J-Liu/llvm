@@ -30,6 +30,15 @@ private:
   const TargetInstrInfo &TII;
 public:
   UniCoreRegisterInfo(UniCoreTargetMachine &tm, const TargetInstrInfo &tii);
+
+  const uint16_t *getCalleeSavedRegs(const MachineFunction *MF = 0) const;
+
+  BitVector getReservedRegs(const MachineFunction &MF) const;
+
+  void eliminateFrameIndex(MachineBasicBlock::iterator II,
+                           int SPAdj, RegScavenger *RS = NULL) const;
+
+  unsigned getFrameRegister(const MachineFunction &MF) const;
 };
 
 } // end namespace llvm

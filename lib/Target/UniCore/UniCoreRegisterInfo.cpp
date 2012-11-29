@@ -35,3 +35,16 @@ UniCoreRegisterInfo::UniCoreRegisterInfo(UniCoreTargetMachine &tm,
                                          const TargetInstrInfo &tii)
   : UniCoreGenRegisterInfo(UniCore::PC), TM(tm), TII(tii) {
 }
+
+const uint16_t *
+UniCoreRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {}
+
+BitVector
+UniCoreRegisterInfo::getReservedRegs(const MachineFunction &MF) const {}
+
+void
+UniCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
+                                         int SPAdj, RegScavenger *RS) const {}
+
+unsigned
+UniCoreRegisterInfo::getFrameRegister(const MachineFunction &MF) const {}
