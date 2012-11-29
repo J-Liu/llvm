@@ -19,5 +19,5 @@
 type = Library
 name = UniCoreDesc
 parent = UniCore
-required_libraries = Support
+required_libraries = MC Support
 add_to_library_groups = UniCore
