@@ -63,10 +63,12 @@ def GPRRegs : RegisterClass<"UniCore", [i32], 32, (add
   // Reserved
   R16,
   // Return Values and Arguments
-  A1, A2, A3, A4,
+  A1, A2,
+  // Arguments
+  A3, A4,
   // Not preserved across procedure calls
-  R4, R5, R6, R7, R8, R9, R10, R11, R12, R13, R14, R15,
+  R4, R5, R6, R7, R8, R9, R10, R11, R12, R13, R14, R15, IP, LR,
   // Callee save
-  R17, R18, R19, R20, R21, R22, R23, R24, SB, SL, FP, IP, SP, LR,
+  R17, R18, R19, R20, R21, R22, R23, R24, SB, SL, FP,
   // Reserved
-  PC)>;
+  SP, PC)>;
