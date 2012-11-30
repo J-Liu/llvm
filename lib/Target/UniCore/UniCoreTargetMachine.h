@@ -17,6 +17,8 @@
 #include "UniCoreRegisterInfo.h"
 #include "UniCoreSubtarget.h"
 #include "UniCoreInstrInfo.h"
+#include "UniCoreISelLowering.h"
+#include "UniCoreSelectionDAGInfo.h"
 #include "llvm/DataLayout.h"
 #include "llvm/Target/TargetMachine.h"
 
@@ -27,6 +29,7 @@ namespace llvm {
   UniCoreSubtarget          Subtarget;
   const DataLayout          DL;        // Calculates type size & alignment
   UniCoreInstrInfo          InstrInfo;
+  UniCoreTargetLowering     TLInfo;
 
   public:
     UniCoreTargetMachine(const Target &T, StringRef TT,
@@ -43,6 +46,10 @@ namespace llvm {
 
     virtual const TargetRegisterInfo *getRegisterInfo() const {
       return &InstrInfo.getRegisterInfo();
+    }
+
+    virtual const UniCoreTargetLowering *getTargetLowering() const {
+      return &TLInfo;
     }
   };
 } // End llvm namespace
