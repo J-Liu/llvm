@@ -15,7 +15,8 @@ BUILT_SOURCES = UniCoreGenRegisterInfo.inc \
                 UniCoreGenInstrInfo.inc \
                 UniCoreGenAsmWriter.inc \
                 UniCoreGenCallingConv.inc \
-                UniCoreGenSubtargetInfo.inc
+                UniCoreGenSubtargetInfo.inc \
+                UniCoreGenDAGISel.inc		
 
 DIRS = InstPrinter TargetInfo MCTargetDesc
 
