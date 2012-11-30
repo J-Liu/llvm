@@ -13,6 +13,7 @@ TARGET = UniCore
 # Make sure that tblgen is run, first thing.
 BUILT_SOURCES = UniCoreGenRegisterInfo.inc UniCoreGenInstrInfo.inc \
     UniCoreGenAsmWriter.inc \
+    UniCoreGenCallingConv.inc \
     UniCoreGenSubtargetInfo.inc
 
 DIRS = InstPrinter TargetInfo MCTargetDesc
