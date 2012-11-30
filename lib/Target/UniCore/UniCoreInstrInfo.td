@@ -28,7 +28,7 @@ def SDT_UniCoreCallSeqEnd   : SDCallSeqEnd<[SDTCisVT<0, i32>, SDTCisVT<1, i32>]>
 // UniCore specific nodes
 //===----------------------------------------------------------------------===//
 
-def retflag       :  SDNode<"UniCoreISD::RET_FLAG", SDTNone,
+def ret           :  SDNode<"UniCoreISD::Ret", SDTNone,
                             [SDNPHasChain, SDNPOptInGlue]>;
 def callseq_start :  SDNode<"ISD::CALLSEQ_START", SDT_UniCoreCallSeqStart,
                             [SDNPHasChain, SDNPOutGlue]>;
@@ -45,3 +45,9 @@ def callseq_end   :  SDNode<"ISD::CALLSEQ_END",   SDT_UniCoreCallSeqEnd,
 let neverHasSideEffects = 1 in
 // Just a slot to make the build progress success.
 def NOP : UniCoreInst<(outs), (ins), "nop", []>;
+
+let isReturn = 1, isTerminator = 1, isBarrier = 1 in {
+  def Ret : UniCoreInst<(outs), (ins),
+                        "ret",
+                        [(ret)]>;
+}

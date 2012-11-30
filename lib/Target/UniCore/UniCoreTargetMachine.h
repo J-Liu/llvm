@@ -51,6 +51,8 @@ namespace llvm {
     virtual const UniCoreTargetLowering *getTargetLowering() const {
       return &TLInfo;
     }
+
+    virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
   };
 } // End llvm namespace
 

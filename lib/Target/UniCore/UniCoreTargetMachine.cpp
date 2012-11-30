@@ -37,3 +37,28 @@ UniCoreTargetMachine(const Target &T, StringRef TT,
     TLInfo(*this)
 {
 }
+
+namespace {
+/// UniCore Code Generator Pass Configuration Options.
+class UniCorePassConfig : public TargetPassConfig {
+public:
+  UniCorePassConfig(UniCoreTargetMachine *TM, PassManagerBase &PM)
+    : TargetPassConfig(TM, PM) {}
+
+  UniCoreTargetMachine &getUniCoreTargetMachine() const {
+    return getTM<UniCoreTargetMachine>();
+  }
+
+  virtual bool addInstSelector();
+};
+} // namespace
+
+TargetPassConfig *UniCoreTargetMachine::createPassConfig(PassManagerBase &PM) {
+  return new UniCorePassConfig(this, PM);
+}
+
+bool UniCorePassConfig::addInstSelector() {
+  // Install an instruction selector.
+  addPass(createUniCoreISelDag(getUniCoreTargetMachine(), getOptLevel()));
+  return false;
+}
