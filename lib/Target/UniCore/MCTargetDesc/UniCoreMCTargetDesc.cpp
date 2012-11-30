@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "UniCoreMCTargetDesc.h"
+#include "UniCoreMCAsmInfo.h"
+#include "InstPrinter/UniCoreInstPrinter.h"
 #include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
@@ -48,6 +50,26 @@ static MCSubtargetInfo *createUniCoreMCSubtargetInfo(StringRef TT, StringRef CPU
   return X;
 }
 
+static MCCodeGenInfo *createUniCoreMCCodeGenInfo(StringRef TT, Reloc::Model RM,
+                                                 CodeModel::Model CM,
+                                                 CodeGenOpt::Level OL) {
+  MCCodeGenInfo *X = new MCCodeGenInfo();
+  X->InitMCCodeGenInfo(RM, CM, OL);
+  return X;
+}
+
+static MCInstPrinter *createUniCoreMCInstPrinter(const Target &T,
+	                                         unsigned SyntaxVariant,
+                                                 const MCAsmInfo &MAI,
+                                                 const MCInstrInfo &MII,
+			                         const MCRegisterInfo &MRI,
+			                         const MCSubtargetInfo &STI) {
+  if (SyntaxVariant == 0)
+    return new UniCoreInstPrinter(MAI, MII, MRI);
+
+  return 0;
+}
+
 extern "C" void LLVMInitializeUniCoreTargetMC() {
   // Register the MC instruction info.
   TargetRegistry::RegisterMCInstrInfo(TheUniCoreTarget, createUniCoreMCInstrInfo);
@@ -59,4 +81,15 @@ extern "C" void LLVMInitializeUniCoreTargetMC() {
   // Register the MC subtarget info.
   TargetRegistry::RegisterMCSubtargetInfo(TheUniCoreTarget,
                                           createUniCoreMCSubtargetInfo);
+
+  // Register the MC asm info.
+  RegisterMCAsmInfo<UniCoreMCAsmInfo> X(TheUniCoreTarget);
+
+  // Register the MC codegen info.
+  TargetRegistry::RegisterMCCodeGenInfo(TheUniCoreTarget,
+                                        createUniCoreMCCodeGenInfo);
+
+  // Register the MCInstPrinter.
+  TargetRegistry::RegisterMCInstPrinter(TheUniCoreTarget,
+                                        createUniCoreMCInstPrinter);
 }

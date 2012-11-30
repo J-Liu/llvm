@@ -16,19 +16,19 @@
 ;===------------------------------------------------------------------------===;
 
 [common]
-subdirectories = MCTargetDesc TargetInfo
+subdirectories = InstPrinter MCTargetDesc TargetInfo
 
 [component_0]
 type = TargetGroup
 name = UniCore
 parent = Target
 has_asmparser = 0
-has_asmprinter = 0
+has_asmprinter = 1
 has_disassembler = 0
 
 [component_1]
 type = Library
 name = UniCoreCodeGen
 parent = UniCore
-required_libraries = AsmPrinter CodeGen Core UniCoreDesc UniCoreInfo SelectionDAG Support Target
+required_libraries = AsmPrinter CodeGen Core MC UniCoreDesc UniCoreInfo SelectionDAG Support Target
 add_to_library_groups = UniCore

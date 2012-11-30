@@ -42,10 +42,16 @@ def : Proc<"unicore32", []>;
 
 def UniCoreInstrInfo : InstrInfo;
 
+def UniCoreAsmWriter : AsmWriter {
+  string AsmWriterClassName = "InstPrinter";
+  bit isMCAsmWriter = 1;
+}
+
 //===----------------------------------------------------------------------===//
 // Target Declaration
 //===----------------------------------------------------------------------===//
 
 def UniCore : Target {
   let InstructionSet = UniCoreInstrInfo;
+  let AssemblyWriters = [UniCoreAsmWriter];
 }

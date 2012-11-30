@@ -1,4 +1,4 @@
-;===-- ./lib/Target/UniCore/MCTargetDesc/LLVMBuild.txt ---------*- Conf -*--===;
+;===- ./lib/Target/UniCore/InstPrinter/LLVMBuild.txt ----------*- Conf -*--===;
 ;
 ;                     The LLVM Compiler Infrastructure
 ;
@@ -17,7 +17,7 @@
 
 [component_0]
 type = Library
-name = UniCoreDesc
+name = UniCoreAsmPrinter
 parent = UniCore
-required_libraries = MC UniCoreAsmPrinter UniCoreInfo Support Target
+required_libraries = MC Support
 add_to_library_groups = UniCore

@@ -11,10 +11,10 @@ LIBRARYNAME = LLVMUniCoreCodeGen
 TARGET = UniCore
 
 # Make sure that tblgen is run, first thing.
-BUILT_SOURCES = UniCoreGenRegisterInfo.inc \
-                UniCoreGenInstrInfo.inc \
-                UniCoreGenSubtargetInfo.inc
+BUILT_SOURCES = UniCoreGenRegisterInfo.inc UniCoreGenInstrInfo.inc \
+    UniCoreGenAsmWriter.inc \
+    UniCoreGenSubtargetInfo.inc
 
-DIRS = TargetInfo MCTargetDesc
+DIRS = InstPrinter TargetInfo MCTargetDesc
 
 include $(LEVEL)/Makefile.common
