@@ -1,4 +1,4 @@
-;===-- ./lib/Target/UniCore/LLVMBuild.txt ----------------------*- Conf -*--===;
+;===- ./lib/Target/UniCore/LLVMBuild.txt -----------------------*- Conf -*--===;
 ;
 ;                     The LLVM Compiler Infrastructure
 ;
@@ -30,5 +30,5 @@ has_disassembler = 0
 type = Library
 name = UniCoreCodeGen
 parent = UniCore
-required_libraries = AsmPrinter CodeGen Core MC UniCoreDesc UniCoreInfo SelectionDAG Support Target
+required_libraries = AsmPrinter CodeGen Core MC UniCoreAsmPrinter UniCoreDesc UniCoreInfo SelectionDAG Support Target
 add_to_library_groups = UniCore

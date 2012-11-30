@@ -1,4 +1,4 @@
-##===-- lib/Target/UniCore/TargetInfo/Makefile -------------*- Makefile -*-===##
+##===- lib/Target/UniCore/TargetInfo/Makefile -------------*- Makefile -*--===##
 #
 #                     The LLVM Compiler Infrastructure
 #

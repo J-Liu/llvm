@@ -1,4 +1,4 @@
-;===-- ./lib/Target/UniCore/TargetInfo/LLVMBuild.txt -----------*- Conf -*--===;
+;===- ./lib/Target/UniCore/TargetInfo/LLVMBuild.txt ------------*- Conf -*--===;
 ;
 ;                     The LLVM Compiler Infrastructure
 ;

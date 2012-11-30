@@ -14,6 +14,7 @@
 #include "UniCoreMCTargetDesc.h"
 #include "UniCoreMCAsmInfo.h"
 #include "InstPrinter/UniCoreInstPrinter.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
@@ -44,7 +45,7 @@ static MCRegisterInfo *createUniCoreMCRegisterInfo(StringRef TT) {
 }
 
 static MCSubtargetInfo *createUniCoreMCSubtargetInfo(StringRef TT, StringRef CPU,
-                                                      StringRef FS) {
+                                                     StringRef FS) {
   MCSubtargetInfo *X = new MCSubtargetInfo();
   InitUniCoreMCSubtargetInfo(X, TT, CPU, FS);
   return X;

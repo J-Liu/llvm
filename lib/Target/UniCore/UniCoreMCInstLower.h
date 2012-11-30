@@ -1,4 +1,4 @@
-//===-- UniCoreMCInstLower.h - Lower MachineInstr to MCInst ----*- C++ -*-===//
+//===-- UniCoreMCInstLower.h - Lower MachineInstr to MCInst ----*- C++ -*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef OPENRISC_MCINSTLOWER_H
-#define OPENRISC_MCINSTLOWER_H
+#ifndef UNICORE_MCINSTLOWER_H
+#define UNICORE_MCINSTLOWER_H
 
 #include "llvm/Support/Compiler.h"
 

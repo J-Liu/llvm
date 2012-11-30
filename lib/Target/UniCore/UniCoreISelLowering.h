@@ -1,4 +1,4 @@
-//===-- UniCoreISelLowering.h - UniCore DAG Lowering Interface --*- C++ -*-===//
+//===-- UniCoreISelLowering.h - UniCore DAG Lowering Interface -*- C++ -*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //

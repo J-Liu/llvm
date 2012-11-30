@@ -1,4 +1,4 @@
-//==-- UniCoreInstrInfo.h - UniCore Instruction Information ---*- C++ -*-===//
+//===-- UniCoreInstrInfo.h - UniCore Instruction Information ---*- C++ -*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -35,6 +35,12 @@ public:
   /// always be able to get register info as well (through this method).
   ///
   virtual const TargetRegisterInfo &getRegisterInfo() const { return RI; }
+#if 0
+  void copyPhysReg(MachineBasicBlock &MBB,
+                   MachineBasicBlock::iterator I, DebugLoc DL,
+                   unsigned DestReg, unsigned SrcReg,
+                   bool KillSrc) const;
+#endif
 };
 
 }

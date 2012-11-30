@@ -1,4 +1,4 @@
-//===-- UniCoreInstPrinter.cpp - Convert UniCore MCInst to asm syntax ---===//
+//===-- UniCoreInstPrinter.cpp - Convert UniCore MCInst to asm syntax -----===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -26,7 +26,7 @@ using namespace llvm;
 #include "UniCoreGenAsmWriter.inc"
  
 void UniCoreInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
-                                  StringRef Annot) {
+                                   StringRef Annot) {
   printInstruction(MI, O);
   printAnnotation(O, Annot);
 }

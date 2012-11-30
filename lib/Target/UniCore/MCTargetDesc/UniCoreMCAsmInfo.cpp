@@ -1,4 +1,4 @@
-//===-- UniCoreMCAsmInfo.cpp - UniCore asm properties --------------------===//
+//===-- UniCoreMCAsmInfo.cpp - UniCore asm properties ---------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //

@@ -1,4 +1,4 @@
-//===-- UniCoreCallingConv.td - Calling Conv. for UniCore --*- tablegen -*-===//
+//===-- UniCoreCallingConv.td - Calling Conv. for UniCore -*- tablegen -*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //

@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGET_UniCore_SUBTARGET_H
-#define LLVM_TARGET_UniCore_SUBTARGET_H
+#ifndef LLVM_TARGET_UNICORE_SUBTARGET_H
+#define LLVM_TARGET_UNICORE_SUBTARGET_H
 
 #include "llvm/Target/TargetSubtargetInfo.h"
 #include <string>
@@ -53,4 +53,4 @@ public:
 };
 } // End llvm namespace
 
-#endif  // LLVM_TARGET_UniCore_SUBTARGET_H
+#endif  // LLVM_TARGET_UNICORE_SUBTARGET_H

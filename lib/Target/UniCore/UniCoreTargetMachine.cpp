@@ -13,7 +13,11 @@
 
 #include "UniCoreTargetMachine.h"
 #include "UniCore.h"
+#include "llvm/PassManager.h"
+#include "llvm/CodeGen/Passes.h"
+#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/Support/TargetRegistry.h"
+
 using namespace llvm;
 
 extern "C" void LLVMInitializeUniCoreTarget() {

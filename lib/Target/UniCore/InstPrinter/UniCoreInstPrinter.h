@@ -1,4 +1,4 @@
-//= UniCoreInstPrinter.h - Convert UniCore MCInst to asm syntax -*- C++ -*--//
+//==- UniCoreInstPrinter.h - Convert UniCore MCInst to asm syntax -*- C++ -*-=//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -22,7 +22,7 @@ namespace llvm {
   class UniCoreInstPrinter : public MCInstPrinter {
   public:
     UniCoreInstPrinter(const MCAsmInfo &MAI, const MCInstrInfo &MII,
-                        const MCRegisterInfo &MRI)
+                       const MCRegisterInfo &MRI)
       : MCInstPrinter(MAI, MII, MRI) {}
 
     void printInst(const MCInst *MI, raw_ostream &O, StringRef Annot);

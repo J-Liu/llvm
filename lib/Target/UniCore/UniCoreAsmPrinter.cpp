@@ -1,4 +1,4 @@
-//===-- UniCoreAsmPrinter.cpp - UniCore LLVM assembly writer -------------===//
+//===-- UniCoreAsmPrinter.cpp - UniCore LLVM assembly writer --------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //

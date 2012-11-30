@@ -1,4 +1,4 @@
-//===-- UniCore.td - Describe the UniCore Target Machine ---*- tablegen -*-===//
+//===-- UniCore.td - Describe the UniCore Target Machine --*- tablegen -*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //

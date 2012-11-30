@@ -1,4 +1,4 @@
-//===-- UniCoreMCTargetDesc.h - UniCore Target Descriptions -----*- C++ -*-===//
+//===-- UniCoreMCTargetDesc.h - UniCore Target Descriptions ----*- C++ -*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //

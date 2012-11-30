@@ -14,7 +14,7 @@
 // Generic UniCore instruction
 class UniCoreInst<dag outs, dag ins,
                   string asmstr, list<dag> pattern> : Instruction {
-  field bits<16> Inst;
+  field bits<32> Inst;
 
   let Namespace = "UniCore";
 

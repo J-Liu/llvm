@@ -1,4 +1,4 @@
-//===-- UniCore.h - Top-level interface for UniCore -------------*- C++ -*-===//
+//===-- UniCore.h - Top-level interface for UniCore ------------*- C++ -*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //

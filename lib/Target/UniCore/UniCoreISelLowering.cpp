@@ -141,6 +141,21 @@ UniCoreTargetLowering::LowerReturn(SDValue Chain,
 
   SDValue Flag;
 
+#if 0
+  // Copy the result values into the output registers.
+  for (unsigned i = 0; i != RVLocs.size(); ++i) {
+    CCValAssign &VA = RVLocs[i];
+    assert(VA.isRegLoc() && "Can only return in registers!");
+
+    Chain = DAG.getCopyToReg(Chain, dl, VA.getLocReg(),
+                             OutVals[i], Flag);
+
+    // Guarantee that all emitted copies are stuck together,
+    // avoiding something bad.
+    Flag = Chain.getValue(1);
+  }
+#endif
+
   unsigned Opc = UniCoreISD::Ret;
   if (Flag.getNode())
     return DAG.getNode(Opc, dl, MVT::Other, Chain, Flag);

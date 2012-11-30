@@ -1,4 +1,4 @@
-##===-- lib/Target/UniCore/Makefile ------------------------*- Makefile -*-===##
+##===- lib/Target/UniCore/Makefile ------------------------*- Makefile -*--===##
 #
 #                     The LLVM Compiler Infrastructure
 #
@@ -11,10 +11,11 @@ LIBRARYNAME = LLVMUniCoreCodeGen
 TARGET = UniCore
 
 # Make sure that tblgen is run, first thing.
-BUILT_SOURCES = UniCoreGenRegisterInfo.inc UniCoreGenInstrInfo.inc \
-    UniCoreGenAsmWriter.inc \
-    UniCoreGenCallingConv.inc \
-    UniCoreGenSubtargetInfo.inc
+BUILT_SOURCES = UniCoreGenRegisterInfo.inc \
+                UniCoreGenInstrInfo.inc \
+                UniCoreGenAsmWriter.inc \
+                UniCoreGenCallingConv.inc \
+                UniCoreGenSubtargetInfo.inc
 
 DIRS = InstPrinter TargetInfo MCTargetDesc
 

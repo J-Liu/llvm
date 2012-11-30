@@ -1,4 +1,4 @@
-##===- lib/Target/UniCore/InstPrinter/Makefile ------------*- Makefile -*-===##
+##===- lib/Target/UniCore/InstPrinter/Makefile ------------*- Makefile -*--===##
 #
 #                     The LLVM Compiler Infrastructure
 #

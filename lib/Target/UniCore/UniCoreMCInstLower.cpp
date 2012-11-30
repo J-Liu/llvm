@@ -1,4 +1,4 @@
-//=-- UniCoreMCInstLower.cpp - Convert UniCore MachineInstr to an MCInst --=//
+//===- UniCoreMCInstLower.cpp - Convert UniCore MachineInstr to an MCInst -===//
 //
 //                     The LLVM Compiler Infrastructure
 //

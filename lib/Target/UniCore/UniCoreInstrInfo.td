@@ -1,4 +1,4 @@
-//===-- UniCoreInstrInfo.td - UniCore Instruction defs -----*- tablegen -*-===//
+//===-- UniCoreInstrInfo.td - UniCore Instruction defs ----*- tablegen -*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -6,10 +6,15 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
+//
+// This file describes the UniCore instructions in TableGen format.
+//
+//===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
 // Instruction format superclass
 //===----------------------------------------------------------------------===//
+
 include "UniCoreInstrFormats.td"
 
 //===----------------------------------------------------------------------===//
