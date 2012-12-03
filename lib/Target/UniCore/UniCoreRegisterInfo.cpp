@@ -37,14 +37,26 @@ UniCoreRegisterInfo::UniCoreRegisterInfo(UniCoreTargetMachine &tm,
 }
 
 const uint16_t *
-UniCoreRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {}
+UniCoreRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
+  return CSR_SaveList;
+}
 
 BitVector
-UniCoreRegisterInfo::getReservedRegs(const MachineFunction &MF) const {}
+UniCoreRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
+  BitVector Reserved(getNumRegs());
+
+  Reserved.set(UniCore::R16);
+  Reserved.set(UniCore::SP);
+  Reserved.set(UniCore::PC);
+
+  return Reserved;
+}
 
 void
 UniCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                                          int SPAdj, RegScavenger *RS) const {}
 
 unsigned
-UniCoreRegisterInfo::getFrameRegister(const MachineFunction &MF) const {}
+UniCoreRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
+  return UniCore::SP;
+}

@@ -18,6 +18,8 @@
 #include "UniCoreSubtarget.h"
 #include "UniCoreInstrInfo.h"
 #include "UniCoreISelLowering.h"
+#include "UniCoreFrameLowering.h"
+#include "UniCoreSelectionDAGInfo.h"
 #include "UniCoreSelectionDAGInfo.h"
 #include "llvm/DataLayout.h"
 #include "llvm/Target/TargetMachine.h"
@@ -30,6 +32,8 @@ namespace llvm {
   const DataLayout          DL;        // Calculates type size & alignment
   UniCoreInstrInfo          InstrInfo;
   UniCoreTargetLowering     TLInfo;
+  UniCoreSelectionDAGInfo   TSInfo;
+  UniCoreFrameLowering      FrameLowering;
 
   public:
     UniCoreTargetMachine(const Target &T, StringRef TT,
@@ -50,6 +54,14 @@ namespace llvm {
 
     virtual const UniCoreTargetLowering *getTargetLowering() const {
       return &TLInfo;
+    }
+
+    virtual const UniCoreSelectionDAGInfo* getSelectionDAGInfo() const {
+      return &TSInfo;
+    }
+
+    virtual const TargetFrameLowering *getFrameLowering() const {
+      return &FrameLowering;
     }
 
     virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
