@@ -14,7 +14,7 @@
 //===----------------------------------------------------------------------===//
 def RetCC_UniCore : CallingConv<[
   // i32 are returned in registers A1, A2
-  CCIfType<[i32], CCAssignToReg<[A1, A1]>>
+  CCIfType<[i32], CCAssignToReg<[A1, A2]>>
 ]>;
 
 //===----------------------------------------------------------------------===//
@@ -39,4 +39,4 @@ def CC_UniCore : CallingConv<[
 // Callee-saved register lists.
 //===----------------------------------------------------------------------===//
 
-def CSR: CalleeSavedRegs<(add R17, R18, R19, R20, R21, R22, R23, R24, SB, SL, FP, IP, SP, LR)>;
+def CSR: CalleeSavedRegs<(add R17, R18, R19, R20, R21, R22, R23, R24, SB, SL, FP)>;
