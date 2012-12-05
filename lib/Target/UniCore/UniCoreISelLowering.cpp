@@ -28,6 +28,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
+#include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -36,7 +37,7 @@
 using namespace llvm;
 
 UniCoreTargetLowering::UniCoreTargetLowering(UniCoreTargetMachine &TM)
-  : TargetLowering(TM, new UniCoreTargetObjectFile()),
+  : TargetLowering(TM, new TargetLoweringObjectFileELF()),
     TM(TM)
 {
 }
