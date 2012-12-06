@@ -36,10 +36,19 @@
 
 using namespace llvm;
 
-UniCoreTargetLowering::UniCoreTargetLowering(UniCoreTargetMachine &TM)
-  : TargetLowering(TM, new TargetLoweringObjectFileELF()),
-    TM(TM)
-{
+UniCoreTargetLowering::UniCoreTargetLowering(UniCoreTargetMachine &tm)
+  : TargetLowering(tm, new TargetLoweringObjectFileELF()),
+    Subtarget(*tm.getSubtargetImpl()), TM(tm) {
+
+  DL = getDataLayout();
+  // Set up the register classes.
+  addRegisterClass(MVT::i32, &UniCore::GPRRegsRegClass);
+
+  // Compute derived properties from the register classes
+  computeRegisterProperties();
+
+  setMinFunctionAlignment(4);
+  setPrefFunctionAlignment(4);
 }
 
 SDValue

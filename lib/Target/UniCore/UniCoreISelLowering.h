@@ -36,6 +36,9 @@ namespace llvm {
   // TargetLowering Implementation
   //===--------------------------------------------------------------------===//
 
+  class UniCoreSubtarget;
+  class UniCoreTargetMachine;
+
   class UniCoreTargetLowering : public TargetLowering  {
   public:
     explicit UniCoreTargetLowering(UniCoreTargetMachine &TM);
@@ -48,7 +51,9 @@ namespace llvm {
     virtual const char *getTargetNodeName(unsigned Opcode) const;
 
   private:
+    const UniCoreSubtarget &Subtarget;
     const UniCoreTargetMachine &TM;
+    const DataLayout *DL;
 
     SDValue LowerCCCArguments(SDValue Chain,
                               CallingConv::ID CallConv,
