@@ -151,7 +151,6 @@ UniCoreTargetLowering::LowerReturn(SDValue Chain,
 
   SDValue Flag;
 
-#if 0
   // Copy the result values into the output registers.
   for (unsigned i = 0; i != RVLocs.size(); ++i) {
     CCValAssign &VA = RVLocs[i];
@@ -164,7 +163,6 @@ UniCoreTargetLowering::LowerReturn(SDValue Chain,
     // avoiding something bad.
     Flag = Chain.getValue(1);
   }
-#endif
 
   unsigned Opc = UniCoreISD::Ret;
   if (Flag.getNode())
