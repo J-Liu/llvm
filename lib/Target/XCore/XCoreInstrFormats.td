@@ -10,7 +10,7 @@
 //===----------------------------------------------------------------------===//
 // Instruction format superclass
 //===----------------------------------------------------------------------===//
-class InstXCore<dag outs, dag ins, string asmstr, list<dag> pattern>
+class InstXCore<int sz, dag outs, dag ins, string asmstr, list<dag> pattern>
     : Instruction {
   field bits<32> Inst;
 
@@ -19,102 +19,94 @@ class InstXCore<dag outs, dag ins, string asmstr, list<dag> pattern>
   dag InOperandList = ins;
   let AsmString   = asmstr;
   let Pattern = pattern;
+  let Size = sz;
+  field bits<32> SoftFail = 0;
 }
 
 // XCore pseudo instructions format
 class PseudoInstXCore<dag outs, dag ins, string asmstr, list<dag> pattern>
-   : InstXCore<outs, ins, asmstr, pattern>;
+   : InstXCore<0, outs, ins, asmstr, pattern> {
+  let isPseudo = 1;
+}
 
 //===----------------------------------------------------------------------===//
 // Instruction formats
 //===----------------------------------------------------------------------===//
 
 class _F3R<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+    : InstXCore<2, outs, ins, asmstr, pattern> {
 }
 
 class _FL3R<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+    : InstXCore<4, outs, ins, asmstr, pattern> {
 }
 
 class _F2RUS<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+    : InstXCore<2, outs, ins, asmstr, pattern> {
 }
 
 class _FL2RUS<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+    : InstXCore<4, outs, ins, asmstr, pattern> {
 }
 
 class _FRU6<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+    : InstXCore<2, outs, ins, asmstr, pattern> {
 }
 
 class _FLRU6<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+    : InstXCore<4, outs, ins, asmstr, pattern> {
 }
 
 class _FU6<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+    : InstXCore<2, outs, ins, asmstr, pattern> {
 }
 
 class _FLU6<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+    : InstXCore<4, outs, ins, asmstr, pattern> {
 }
 
 class _FU10<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+    : InstXCore<2, outs, ins, asmstr, pattern> {
 }
 
 class _FLU10<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+    : InstXCore<4, outs, ins, asmstr, pattern> {
 }
 
 class _F2R<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+    : InstXCore<2, outs, ins, asmstr, pattern> {
 }
 
 class _FRUS<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+    : InstXCore<2, outs, ins, asmstr, pattern> {
 }
 
 class _FL2R<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+    : InstXCore<4, outs, ins, asmstr, pattern> {
 }
 
-class _F1R<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+class _F1R<bits<6> opc, dag outs, dag ins, string asmstr, list<dag> pattern>
+    : InstXCore<2, outs, ins, asmstr, pattern> {
+  bits<4> a;
+
+  let Inst{15-11} = opc{5-1};
+  let Inst{10-5} = 0b111111;
+  let Inst{4} = opc{0};
+  let Inst{3-0} = a;
 }
 
 class _F0R<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+    : InstXCore<2, outs, ins, asmstr, pattern> {
 }
 
 class _L4R<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+    : InstXCore<4, outs, ins, asmstr, pattern> {
 }
 
 class _L5R<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+    : InstXCore<4, outs, ins, asmstr, pattern> {
 }
 
 class _L6R<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : InstXCore<outs, ins, asmstr, pattern> {
-  let Inst{31-0} = 0;
+    : InstXCore<4, outs, ins, asmstr, pattern> {
 }

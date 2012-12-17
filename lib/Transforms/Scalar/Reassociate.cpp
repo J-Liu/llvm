@@ -22,7 +22,12 @@
 
 #define DEBUG_TYPE "reassociate"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Transforms/Utils/Local.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SetVector.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/Assembly/Writer.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
@@ -30,16 +35,11 @@
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Pass.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/PostOrderIterator.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SetVector.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/Assembly/Writer.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -423,10 +423,6 @@ static bool LinearizeExprTree(BinaryOperator *I,
   assert(Instruction::isAssociative(Opcode) &&
          Instruction::isCommutative(Opcode) &&
          "Expected an associative and commutative operation!");
-  // If we see an absorbing element then the entire expression must be equal to
-  // it.  For example, if this is a multiplication expression and zero occurs as
-  // an operand somewhere in it then the result of the expression must be zero.
-  Constant *Absorber = ConstantExpr::getBinOpAbsorber(Opcode, I->getType());
 
   // Visit all operands of the expression, keeping track of their weight (the
   // number of paths from the expression root to the operand, or if you like
@@ -473,13 +469,6 @@ static bool LinearizeExprTree(BinaryOperator *I,
       APInt Weight = P.second; // Number of paths to this operand.
       DEBUG(dbgs() << "OPERAND: " << *Op << " (" << Weight << ")\n");
       assert(!Op->use_empty() && "No uses, so how did we get to it?!");
-
-      // If the expression contains an absorbing element then there is no need
-      // to analyze it further: it must evaluate to the absorbing element.
-      if (Op == Absorber && !Weight.isMinValue()) {
-        Ops.push_back(std::make_pair(Absorber, APInt(Bitwidth, 1)));
-        return MadeChange;
-      }
 
       // If this is a binary operation of the right kind with only one use then
       // add its operands to the expression.
@@ -606,8 +595,8 @@ void Reassociate::RewriteExprTree(BinaryOperator *I,
                                   SmallVectorImpl<ValueEntry> &Ops) {
   assert(Ops.size() > 1 && "Single values should be used directly!");
 
-  // Since our optimizations never increase the number of operations, the new
-  // expression can always be written by reusing the existing binary operators
+  // Since our optimizations should never increase the number of operations, the
+  // new expression can usually be written reusing the existing binary operators
   // from the original expression tree, without creating any new instructions,
   // though the rewritten expression may have a completely different topology.
   // We take care to not change anything if the new expression will be the same
@@ -620,6 +609,20 @@ void Reassociate::RewriteExprTree(BinaryOperator *I,
   SmallVector<BinaryOperator*, 8> NodesToRewrite;
   unsigned Opcode = I->getOpcode();
   BinaryOperator *Op = I;
+
+  /// NotRewritable - The operands being written will be the leaves of the new
+  /// expression and must not be used as inner nodes (via NodesToRewrite) by
+  /// mistake.  Inner nodes are always reassociable, and usually leaves are not
+  /// (if they were they would have been incorporated into the expression and so
+  /// would not be leaves), so most of the time there is no danger of this.  But
+  /// in rare cases a leaf may become reassociable if an optimization kills uses
+  /// of it, or it may momentarily become reassociable during rewriting (below)
+  /// due it being removed as an operand of one of its uses.  Ensure that misuse
+  /// of leaf nodes as inner nodes cannot occur by remembering all of the future
+  /// leaves and refusing to reuse any of them as inner nodes.
+  SmallPtrSet<Value*, 8> NotRewritable;
+  for (unsigned i = 0, e = Ops.size(); i != e; ++i)
+    NotRewritable.insert(Ops[i].Op);
 
   // ExpressionChanged - Non-null if the rewritten expression differs from the
   // original in some non-trivial way, requiring the clearing of optional flags.
@@ -653,12 +656,14 @@ void Reassociate::RewriteExprTree(BinaryOperator *I,
       // the old operands with the new ones.
       DEBUG(dbgs() << "RA: " << *Op << '\n');
       if (NewLHS != OldLHS) {
-        if (BinaryOperator *BO = isReassociableOp(OldLHS, Opcode))
+        BinaryOperator *BO = isReassociableOp(OldLHS, Opcode);
+        if (BO && !NotRewritable.count(BO))
           NodesToRewrite.push_back(BO);
         Op->setOperand(0, NewLHS);
       }
       if (NewRHS != OldRHS) {
-        if (BinaryOperator *BO = isReassociableOp(OldRHS, Opcode))
+        BinaryOperator *BO = isReassociableOp(OldRHS, Opcode);
+        if (BO && !NotRewritable.count(BO))
           NodesToRewrite.push_back(BO);
         Op->setOperand(1, NewRHS);
       }
@@ -682,7 +687,8 @@ void Reassociate::RewriteExprTree(BinaryOperator *I,
         Op->swapOperands();
       } else {
         // Overwrite with the new right-hand side.
-        if (BinaryOperator *BO = isReassociableOp(Op->getOperand(1), Opcode))
+        BinaryOperator *BO = isReassociableOp(Op->getOperand(1), Opcode);
+        if (BO && !NotRewritable.count(BO))
           NodesToRewrite.push_back(BO);
         Op->setOperand(1, NewRHS);
         ExpressionChanged = Op;
@@ -695,7 +701,8 @@ void Reassociate::RewriteExprTree(BinaryOperator *I,
     // Now deal with the left-hand side.  If this is already an operation node
     // from the original expression then just rewrite the rest of the expression
     // into it.
-    if (BinaryOperator *BO = isReassociableOp(Op->getOperand(0), Opcode)) {
+    BinaryOperator *BO = isReassociableOp(Op->getOperand(0), Opcode);
+    if (BO && !NotRewritable.count(BO)) {
       Op = BO;
       continue;
     }

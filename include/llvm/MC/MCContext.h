@@ -10,10 +10,10 @@
 #ifndef LLVM_MC_MCCONTEXT_H
 #define LLVM_MC_MCCONTEXT_H
 
-#include "llvm/MC/SectionKind.h"
-#include "llvm/MC/MCDwarf.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/MC/MCDwarf.h"
+#include "llvm/MC/SectionKind.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/raw_ostream.h"
@@ -137,11 +137,15 @@ namespace llvm {
 
     void *MachOUniquingMap, *ELFUniquingMap, *COFFUniquingMap;
 
+    /// Do automatic reset in destructor
+    bool AutoReset;
+
     MCSymbol *CreateSymbol(StringRef Name);
 
   public:
     explicit MCContext(const MCAsmInfo &MAI, const MCRegisterInfo &MRI,
-                       const MCObjectFileInfo *MOFI, const SourceMgr *Mgr = 0);
+                       const MCObjectFileInfo *MOFI, const SourceMgr *Mgr = 0,
+                       bool DoAutoReset = true);
     ~MCContext();
 
     const SourceMgr *getSourceManager() const { return SrcMgr; }
@@ -153,6 +157,15 @@ namespace llvm {
     const MCObjectFileInfo *getObjectFileInfo() const { return MOFI; }
 
     void setAllowTemporaryLabels(bool Value) { AllowTemporaryLabels = Value; }
+
+    /// @name Module Lifetime Management
+    /// @{
+
+    /// reset - return object to right after construction state to prepare
+    /// to process a new module
+    void reset();
+
+    /// @}
 
     /// @name Symbol Management
     /// @{

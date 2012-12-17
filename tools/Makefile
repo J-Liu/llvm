@@ -37,6 +37,11 @@ PARALLEL_DIRS := opt llvm-as llvm-dis \
 	         llvm-size llvm-stress llvm-mcmarkup \
 	         llvm-symbolizer
 
+# If Intel JIT Events support is configured, build an extra tool to test it.
+ifeq ($(USE_INTEL_JITEVENTS), 1)
+  PARALLEL_DIRS += llvm-jitlistener
+endif
+
 # Let users override the set of tools to build from the command line.
 ifdef ONLY_TOOLS
   OPTIONAL_PARALLEL_DIRS :=

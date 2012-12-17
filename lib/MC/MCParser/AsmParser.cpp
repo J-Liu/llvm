@@ -78,11 +78,14 @@ struct MacroInstantiation {
   /// The location of the instantiation.
   SMLoc InstantiationLoc;
 
+  /// The buffer where parsing should resume upon instantiation completion.
+  int ExitBuffer;
+
   /// The location where parsing should resume upon instantiation completion.
   SMLoc ExitLoc;
 
 public:
-  MacroInstantiation(const Macro *M, SMLoc IL, SMLoc EL,
+  MacroInstantiation(const Macro *M, SMLoc IL, int EB, SMLoc EL,
                      MemoryBuffer *I);
 };
 
@@ -94,11 +97,14 @@ struct ParseStatementInfo {
   /// Opcode - The opcode from the last parsed instruction.
   unsigned Opcode;
 
+  /// Error - Was there an error parsing the inline assembly?
+  bool ParseError;
+
   SmallVectorImpl<AsmRewrite> *AsmRewrites;
 
-  ParseStatementInfo() : Opcode(~0U), AsmRewrites(0) {}
+  ParseStatementInfo() : Opcode(~0U), ParseError(false), AsmRewrites(0) {}
   ParseStatementInfo(SmallVectorImpl<AsmRewrite> *rewrites)
-    : Opcode(~0), AsmRewrites(rewrites) {}
+    : Opcode(~0), ParseError(false), AsmRewrites(rewrites) {}
 
   ~ParseStatementInfo() {
     // Free any parsed operands.
@@ -252,7 +258,10 @@ private:
   /// \brief Reset the current lexer position to that given by \p Loc. The
   /// current token is not set; clients should ensure Lex() is called
   /// subsequently.
-  void JumpToLoc(SMLoc Loc);
+  ///
+  /// \param InBuffer If not -1, should be the known buffer id that contains the
+  /// location.
+  void JumpToLoc(SMLoc Loc, int InBuffer=-1);
 
   virtual void EatToEndOfStatement();
 
@@ -396,6 +405,10 @@ public:
       &GenericAsmParser::ParseDirectiveCFIEscape>(".cfi_escape");
     AddDirectiveHandler<
       &GenericAsmParser::ParseDirectiveCFISignalFrame>(".cfi_signal_frame");
+    AddDirectiveHandler<
+      &GenericAsmParser::ParseDirectiveCFIUndefined>(".cfi_undefined");
+    AddDirectiveHandler<
+      &GenericAsmParser::ParseDirectiveCFIRegister>(".cfi_register");
 
     // Macro directives.
     AddDirectiveHandler<&GenericAsmParser::ParseDirectiveMacrosOnOff>(
@@ -433,6 +446,8 @@ public:
   bool ParseDirectiveCFIRestore(StringRef, SMLoc DirectiveLoc);
   bool ParseDirectiveCFIEscape(StringRef, SMLoc DirectiveLoc);
   bool ParseDirectiveCFISignalFrame(StringRef, SMLoc DirectiveLoc);
+  bool ParseDirectiveCFIUndefined(StringRef, SMLoc DirectiveLoc);
+  bool ParseDirectiveCFIRegister(StringRef, SMLoc DirectiveLoc);
 
   bool ParseDirectiveMacrosOnOff(StringRef, SMLoc DirectiveLoc);
   bool ParseDirectiveMacro(StringRef, SMLoc DirectiveLoc);
@@ -550,8 +565,12 @@ bool AsmParser::ProcessIncbinFile(const std::string &Filename) {
   return false;
 }
 
-void AsmParser::JumpToLoc(SMLoc Loc) {
-  CurBuffer = SrcMgr.FindBufferContainingLoc(Loc);
+void AsmParser::JumpToLoc(SMLoc Loc, int InBuffer) {
+  if (InBuffer != -1) {
+    CurBuffer = InBuffer;
+  } else {
+    CurBuffer = SrcMgr.FindBufferContainingLoc(Loc);
+  }
   Lexer.setBuffer(SrcMgr.getMemoryBuffer(CurBuffer), Loc.getPointer());
 }
 
@@ -1369,6 +1388,7 @@ bool AsmParser::ParseStatement(ParseStatementInfo &Info) {
   ParseInstructionInfo IInfo(Info.AsmRewrites);
   bool HadError = getTargetParser().ParseInstruction(IInfo, OpcodeStr.str(),
                                                      IDLoc,Info.ParsedOperands);
+  Info.ParseError = HadError;
 
   // Dump the parsed representation, if requested.
   if (getShowParsedOperands()) {
@@ -1636,9 +1656,11 @@ bool AsmParser::expandMacro(raw_svector_ostream &OS, StringRef Body,
   return false;
 }
 
-MacroInstantiation::MacroInstantiation(const Macro *M, SMLoc IL, SMLoc EL,
+MacroInstantiation::MacroInstantiation(const Macro *M, SMLoc IL,
+                                       int EB, SMLoc EL,
                                        MemoryBuffer *I)
-  : TheMacro(M), Instantiation(I), InstantiationLoc(IL), ExitLoc(EL)
+  : TheMacro(M), Instantiation(I), InstantiationLoc(IL), ExitBuffer(EB),
+    ExitLoc(EL)
 {
 }
 
@@ -1834,6 +1856,7 @@ bool AsmParser::HandleMacroEntry(StringRef Name, SMLoc NameLoc,
   // Create the macro instantiation object and add to the current macro
   // instantiation stack.
   MacroInstantiation *MI = new MacroInstantiation(M, NameLoc,
+                                                  CurBuffer,
                                                   getTok().getLoc(),
                                                   Instantiation);
   ActiveMacros.push_back(MI);
@@ -1848,7 +1871,7 @@ bool AsmParser::HandleMacroEntry(StringRef Name, SMLoc NameLoc,
 
 void AsmParser::HandleMacroExit() {
   // Jump to the EndOfStatement we should return to, and consume it.
-  JumpToLoc(ActiveMacros.back()->ExitLoc);
+  JumpToLoc(ActiveMacros.back()->ExitLoc, ActiveMacros.back()->ExitBuffer);
   Lex();
 
   // Pop the instantiation entry.
@@ -3246,6 +3269,43 @@ bool GenericAsmParser::ParseDirectiveCFISignalFrame(StringRef Directive,
   return false;
 }
 
+/// ParseDirectiveCFIUndefined
+/// ::= .cfi_undefined register
+bool GenericAsmParser::ParseDirectiveCFIUndefined(StringRef Directive,
+                                                  SMLoc DirectiveLoc) {
+  int64_t Register = 0;
+
+  if (ParseRegisterOrRegisterNumber(Register, DirectiveLoc))
+    return true;
+
+  getStreamer().EmitCFIUndefined(Register);
+
+  return false;
+}
+
+/// ParseDirectiveCFIRegister
+/// ::= .cfi_register register, register
+bool GenericAsmParser::ParseDirectiveCFIRegister(StringRef Directive,
+                                                 SMLoc DirectiveLoc) {
+  int64_t Register1 = 0;
+
+  if (ParseRegisterOrRegisterNumber(Register1, DirectiveLoc))
+    return true;
+
+  if (getLexer().isNot(AsmToken::Comma))
+    return TokError("unexpected token in directive");
+  Lex();
+
+  int64_t Register2 = 0;
+
+  if (ParseRegisterOrRegisterNumber(Register2, DirectiveLoc))
+    return true;
+
+  getStreamer().EmitCFIRegister(Register1, Register2);
+
+  return false;
+}
+
 /// ParseDirectiveMacrosOnOff
 /// ::= .macros_on
 /// ::= .macros_off
@@ -3447,6 +3507,7 @@ void AsmParser::InstantiateMacroLikeBody(Macro *M, SMLoc DirectiveLoc,
   // Create the macro instantiation object and add to the current macro
   // instantiation stack.
   MacroInstantiation *MI = new MacroInstantiation(M, DirectiveLoc,
+                                                  CurBuffer,
                                                   getTok().getLoc(),
                                                   Instantiation);
   ActiveMacros.push_back(MI);
@@ -3646,6 +3707,9 @@ bool AsmParser::ParseMSInlineAsm(void *AsmLoc, std::string &AsmString,
   while (getLexer().isNot(AsmToken::Eof)) {
     ParseStatementInfo Info(&AsmStrRewrites);
     if (ParseStatement(Info))
+      return true;
+
+    if (Info.ParseError)
       return true;
 
     if (Info.Opcode != ~0U) {

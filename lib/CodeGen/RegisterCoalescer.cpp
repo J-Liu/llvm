@@ -16,36 +16,31 @@
 #define DEBUG_TYPE "regalloc"
 #include "RegisterCoalescer.h"
 #include "LiveDebugVariables.h"
-#include "VirtRegMap.h"
-
-#include "llvm/Pass.h"
-#include "llvm/Value.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
-#include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/LiveRangeEdit.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstr.h"
-#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/RegisterClassInfo.h"
+#include "llvm/CodeGen/VirtRegMap.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
+#include "llvm/Value.h"
 #include <algorithm>
 #include <cmath>
 using namespace llvm;
@@ -891,8 +886,17 @@ void RegisterCoalescer::updateRegDefsUses(unsigned SrcReg,
   // Update LiveDebugVariables.
   LDV->renameRegister(SrcReg, DstReg, SubIdx);
 
+  SmallPtrSet<MachineInstr*, 8> Visited;
   for (MachineRegisterInfo::reg_iterator I = MRI->reg_begin(SrcReg);
        MachineInstr *UseMI = I.skipInstruction();) {
+    // Each instruction can only be rewritten once because sub-register
+    // composition is not always idempotent. When SrcReg != DstReg, rewriting
+    // the UseMI operands removes them from the SrcReg use-def chain, but when
+    // SrcReg is DstReg we could encounter UseMI twice if it has multiple
+    // operands mentioning the virtual register.
+    if (SrcReg == DstReg && !Visited.insert(UseMI))
+      continue;
+
     SmallVector<unsigned,8> Ops;
     bool Reads, Writes;
     tie(Reads, Writes) = UseMI->readsWritesVirtualRegister(SrcReg, &Ops);
@@ -1936,46 +1940,41 @@ bool RegisterCoalescer::joinIntervals(CoalescerPair &CP) {
 }
 
 namespace {
-  // Information concerning MBB coalescing priority.
-  struct MBBPriorityInfo {
-    MachineBasicBlock *MBB;
-    unsigned Depth;
-    bool IsSplit;
+// Information concerning MBB coalescing priority.
+struct MBBPriorityInfo {
+  MachineBasicBlock *MBB;
+  unsigned Depth;
+  bool IsSplit;
 
-    MBBPriorityInfo(MachineBasicBlock *mbb, unsigned depth, bool issplit)
-      : MBB(mbb), Depth(depth), IsSplit(issplit) {}
-  };
+  MBBPriorityInfo(MachineBasicBlock *mbb, unsigned depth, bool issplit)
+    : MBB(mbb), Depth(depth), IsSplit(issplit) {}
+};
+}
 
-  // MBBPriorityCompare - Comparison predicate that sorts first based on the
-  // loop depth of the basic block (the unsigned), and then on the MBB number.
-  //
-  // EnableGlobalCopies assumes that the primary sort key is loop depth.
-  struct MBBPriorityCompare {
-    bool JoinSplitEdges;
+// C-style comparator that sorts first based on the loop depth of the basic
+// block (the unsigned), and then on the MBB number.
+//
+// EnableGlobalCopies assumes that the primary sort key is loop depth.
+static int compareMBBPriority(const void *L, const void *R) {
+  const MBBPriorityInfo *LHS = static_cast<const MBBPriorityInfo*>(L);
+  const MBBPriorityInfo *RHS = static_cast<const MBBPriorityInfo*>(R);
+  // Deeper loops first
+  if (LHS->Depth != RHS->Depth)
+    return LHS->Depth > RHS->Depth ? -1 : 1;
 
-    MBBPriorityCompare(bool joinsplits): JoinSplitEdges(joinsplits) {}
+  // Try to unsplit critical edges next.
+  if (LHS->IsSplit != RHS->IsSplit)
+    return LHS->IsSplit ? -1 : 1;
 
-    bool operator()(const MBBPriorityInfo &LHS,
-                    const MBBPriorityInfo &RHS) const {
-      // Deeper loops first
-      if (LHS.Depth != RHS.Depth)
-        return LHS.Depth > RHS.Depth;
+  // Prefer blocks that are more connected in the CFG. This takes care of
+  // the most difficult copies first while intervals are short.
+  unsigned cl = LHS->MBB->pred_size() + LHS->MBB->succ_size();
+  unsigned cr = RHS->MBB->pred_size() + RHS->MBB->succ_size();
+  if (cl != cr)
+    return cl > cr ? -1 : 1;
 
-      // Try to unsplit critical edges next.
-      if (JoinSplitEdges && LHS.IsSplit != RHS.IsSplit)
-        return LHS.IsSplit;
-
-      // Prefer blocks that are more connected in the CFG. This takes care of
-      // the most difficult copies first while intervals are short.
-      unsigned cl = LHS.MBB->pred_size() + LHS.MBB->succ_size();
-      unsigned cr = RHS.MBB->pred_size() + RHS.MBB->succ_size();
-      if (cl != cr)
-        return cl > cr;
-
-      // As a last resort, sort by block number.
-      return LHS.MBB->getNumber() < RHS.MBB->getNumber();
-    }
-  };
+  // As a last resort, sort by block number.
+  return LHS->MBB->getNumber() < RHS->MBB->getNumber() ? -1 : 1;
 }
 
 /// \returns true if the given copy uses or defines a local live range.
@@ -2072,9 +2071,9 @@ void RegisterCoalescer::joinAllIntervals() {
   for (MachineFunction::iterator I = MF->begin(), E = MF->end();I != E;++I){
     MachineBasicBlock *MBB = I;
     MBBs.push_back(MBBPriorityInfo(MBB, Loops->getLoopDepth(MBB),
-                                   isSplitEdge(MBB)));
+                                   JoinSplitEdges && isSplitEdge(MBB)));
   }
-  std::sort(MBBs.begin(), MBBs.end(), MBBPriorityCompare(JoinSplitEdges));
+  array_pod_sort(MBBs.begin(), MBBs.end(), compareMBBPriority);
 
   // Coalesce intervals in MBB priority order.
   unsigned CurrDepth = UINT_MAX;

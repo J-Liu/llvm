@@ -16,6 +16,15 @@ N: Owen Anderson
 E: resistor@mac.com
 D: SelectionDAG (lib/CodeGen/SelectionDAG/*)
 
+N: Rafael Avila de Espindola
+E: rafael.espindola@gmail.com
+D: Gold plugin (tools/gold/*)
+
+N: Chandler Carruth
+E: chandlerc@gmail.com
+E: chandlerc@google.com
+D: Config, ADT, Support, inlining & related passse, SROA/mem2reg & related passes, CMake, library layering
+
 N: Evan Cheng
 E: evan.cheng@apple.com
 D: ARM target, parts of code generator not covered by someone else
@@ -30,12 +39,17 @@ D: LLDB
 N: Peter Collingbourne
 D: libclc
 
+N: Anshuman Dasgupta
+E: adasgupt@codeaurora.org
+D: Hexagon Backend
+
 N: Hal Finkel
 E: hfinkel@anl.gov
 D: BBVectorize and the PowerPC target
 
-N: Doug Gregor
-D: Clang Frontend Libraries
+N: Venkatraman Govindaraju
+E: venkatra@cs.wisc.edu
+D: Sparc Backend (lib/Target/Sparc/*)
 
 N: Tobias Grosser
 D: Polly
@@ -51,6 +65,10 @@ N: Justin Holewinski
 E: jholewinski@nvidia.com
 D: NVPTX Target (lib/Target/NVPTX/*)
 
+N: Andy Kaylor
+E: andrew.kaylor@intel.com
+D: MCJIT, RuntimeDyld and JIT event listeners
+
 N: Galina Kistanova
 E: gkistanova@gmail.com
 D: LLVM Buildbot
@@ -63,9 +81,6 @@ N: Benjamin Kramer
 E: benny.kra@gmail.com
 D: DWARF Parser
 
-N: Ted Kremenek
-D: Clang Static Analyzer
-
 N: Sergei Larin
 E: slarin@codeaurora.org
 D: VLIW Instruction Scheduling, Packetization
@@ -75,16 +90,16 @@ E: sabre@nondot.org
 W: http://nondot.org/~sabre/
 D: Everything not covered by someone else
 
-N: John McCall
-E: rjmccall@apple.com
-D: Clang LLVM IR generation
-
 N: Jakob Olesen
 D: Register allocators and TableGen
 
+N: Richard Osborne
+E: richard@xmos.com
+D: XCore Backend
+
 N: Chad Rosier
 E: mcrosier@apple.com
-D: MS-inline asm, fast-isel
+D: Fast-Isel
 
 N: Nadav Rotem
 E: nrotem@apple.com
@@ -96,4 +111,8 @@ D: DragonEgg
 
 N: Andrew Trick
 E: atrick@apple.com
-D: Instruction Scheduling
+D: IndVar Simplify, Loop Strength Reduction, Instruction Scheduling
+
+N: Bill Wendling
+E: wendling@apple.com
+D: libLTO & IR Linker

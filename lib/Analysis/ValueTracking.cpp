@@ -13,21 +13,21 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Constants.h"
-#include "llvm/Instructions.h"
-#include "llvm/GlobalVariable.h"
+#include "llvm/DataLayout.h"
 #include "llvm/GlobalAlias.h"
+#include "llvm/GlobalVariable.h"
+#include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Metadata.h"
 #include "llvm/Operator.h"
-#include "llvm/DataLayout.h"
 #include "llvm/Support/ConstantRange.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/PatternMatch.h"
-#include "llvm/ADT/SmallPtrSet.h"
 #include <cstring>
 using namespace llvm;
 using namespace llvm::PatternMatch;
@@ -799,12 +799,11 @@ void llvm::ComputeSignBit(Value *V, bool &KnownZero, bool &KnownOne,
   KnownZero = ZeroBits[BitWidth - 1];
 }
 
-/// isPowerOfTwo - Return true if the given value is known to have exactly one
+/// isKnownToBeAPowerOfTwo - Return true if the given value is known to have exactly one
 /// bit set when defined. For vectors return true if every element is known to
 /// be a power of two when defined.  Supports values with integer or pointer
 /// types and vectors of integers.
-bool llvm::isPowerOfTwo(Value *V, const DataLayout *TD, bool OrZero,
-                        unsigned Depth) {
+bool llvm::isKnownToBeAPowerOfTwo(Value *V, bool OrZero, unsigned Depth) {
   if (Constant *C = dyn_cast<Constant>(V)) {
     if (C->isNullValue())
       return OrZero;
@@ -831,19 +830,19 @@ bool llvm::isPowerOfTwo(Value *V, const DataLayout *TD, bool OrZero,
   // A shift of a power of two is a power of two or zero.
   if (OrZero && (match(V, m_Shl(m_Value(X), m_Value())) ||
                  match(V, m_Shr(m_Value(X), m_Value()))))
-    return isPowerOfTwo(X, TD, /*OrZero*/true, Depth);
+    return isKnownToBeAPowerOfTwo(X, /*OrZero*/true, Depth);
 
   if (ZExtInst *ZI = dyn_cast<ZExtInst>(V))
-    return isPowerOfTwo(ZI->getOperand(0), TD, OrZero, Depth);
+    return isKnownToBeAPowerOfTwo(ZI->getOperand(0), OrZero, Depth);
 
   if (SelectInst *SI = dyn_cast<SelectInst>(V))
-    return isPowerOfTwo(SI->getTrueValue(), TD, OrZero, Depth) &&
-      isPowerOfTwo(SI->getFalseValue(), TD, OrZero, Depth);
+    return isKnownToBeAPowerOfTwo(SI->getTrueValue(), OrZero, Depth) &&
+      isKnownToBeAPowerOfTwo(SI->getFalseValue(), OrZero, Depth);
 
   if (OrZero && match(V, m_And(m_Value(X), m_Value(Y)))) {
     // A power of two and'd with anything is a power of two or zero.
-    if (isPowerOfTwo(X, TD, /*OrZero*/true, Depth) ||
-        isPowerOfTwo(Y, TD, /*OrZero*/true, Depth))
+    if (isKnownToBeAPowerOfTwo(X, /*OrZero*/true, Depth) ||
+        isKnownToBeAPowerOfTwo(Y, /*OrZero*/true, Depth))
       return true;
     // X & (-X) is always a power of two or zero.
     if (match(X, m_Neg(m_Specific(Y))) || match(Y, m_Neg(m_Specific(X))))
@@ -856,7 +855,73 @@ bool llvm::isPowerOfTwo(Value *V, const DataLayout *TD, bool OrZero,
   // copying a sign bit (sdiv int_min, 2).
   if (match(V, m_Exact(m_LShr(m_Value(), m_Value()))) ||
       match(V, m_Exact(m_UDiv(m_Value(), m_Value())))) {
-    return isPowerOfTwo(cast<Operator>(V)->getOperand(0), TD, OrZero, Depth);
+    return isKnownToBeAPowerOfTwo(cast<Operator>(V)->getOperand(0), OrZero, Depth);
+  }
+
+  return false;
+}
+
+/// \brief Test whether a GEP's result is known to be non-null.
+///
+/// Uses properties inherent in a GEP to try to determine whether it is known
+/// to be non-null.
+///
+/// Currently this routine does not support vector GEPs.
+static bool isGEPKnownNonNull(GEPOperator *GEP, const DataLayout *DL,
+                              unsigned Depth) {
+  if (!GEP->isInBounds() || GEP->getPointerAddressSpace() != 0)
+    return false;
+
+  // FIXME: Support vector-GEPs.
+  assert(GEP->getType()->isPointerTy() && "We only support plain pointer GEP");
+
+  // If the base pointer is non-null, we cannot walk to a null address with an
+  // inbounds GEP in address space zero.
+  if (isKnownNonZero(GEP->getPointerOperand(), DL, Depth))
+    return true;
+
+  // Past this, if we don't have DataLayout, we can't do much.
+  if (!DL)
+    return false;
+
+  // Walk the GEP operands and see if any operand introduces a non-zero offset.
+  // If so, then the GEP cannot produce a null pointer, as doing so would
+  // inherently violate the inbounds contract within address space zero.
+  for (gep_type_iterator GTI = gep_type_begin(GEP), GTE = gep_type_end(GEP);
+       GTI != GTE; ++GTI) {
+    // Struct types are easy -- they must always be indexed by a constant.
+    if (StructType *STy = dyn_cast<StructType>(*GTI)) {
+      ConstantInt *OpC = cast<ConstantInt>(GTI.getOperand());
+      unsigned ElementIdx = OpC->getZExtValue();
+      const StructLayout *SL = DL->getStructLayout(STy);
+      uint64_t ElementOffset = SL->getElementOffset(ElementIdx);
+      if (ElementOffset > 0)
+        return true;
+      continue;
+    }
+
+    // If we have a zero-sized type, the index doesn't matter. Keep looping.
+    if (DL->getTypeAllocSize(GTI.getIndexedType()) == 0)
+      continue;
+
+    // Fast path the constant operand case both for efficiency and so we don't
+    // increment Depth when just zipping down an all-constant GEP.
+    if (ConstantInt *OpC = dyn_cast<ConstantInt>(GTI.getOperand())) {
+      if (!OpC->isZero())
+        return true;
+      continue;
+    }
+
+    // We post-increment Depth here because while isKnownNonZero increments it
+    // as well, when we pop back up that increment won't persist. We don't want
+    // to recurse 10k times just because we have 10k GEP operands. We don't
+    // bail completely out because we want to handle constant GEPs regardless
+    // of depth.
+    if (Depth++ >= MaxDepth)
+      continue;
+
+    if (isKnownNonZero(GTI.getOperand(), DL, Depth))
+      return true;
   }
 
   return false;
@@ -881,7 +946,14 @@ bool llvm::isKnownNonZero(Value *V, const DataLayout *TD, unsigned Depth) {
   if (Depth++ >= MaxDepth)
     return false;
 
-  unsigned BitWidth = getBitWidth(V->getType(), TD);
+  // Check for pointer simplifications.
+  if (V->getType()->isPointerTy()) {
+    if (GEPOperator *GEP = dyn_cast<GEPOperator>(V))
+      if (isGEPKnownNonNull(GEP, TD, Depth))
+        return true;
+  }
+
+  unsigned BitWidth = getBitWidth(V->getType()->getScalarType(), TD);
 
   // X | Y != 0 if X != 0 or Y != 0.
   Value *X = 0, *Y = 0;
@@ -955,9 +1027,9 @@ bool llvm::isKnownNonZero(Value *V, const DataLayout *TD, unsigned Depth) {
     }
 
     // The sum of a non-negative number and a power of two is not zero.
-    if (XKnownNonNegative && isPowerOfTwo(Y, TD, /*OrZero*/false, Depth))
+    if (XKnownNonNegative && isKnownToBeAPowerOfTwo(Y, /*OrZero*/false, Depth))
       return true;
-    if (YKnownNonNegative && isPowerOfTwo(X, TD, /*OrZero*/false, Depth))
+    if (YKnownNonNegative && isKnownToBeAPowerOfTwo(X, /*OrZero*/false, Depth))
       return true;
   }
   // X * Y.
@@ -1312,7 +1384,12 @@ bool llvm::CannotBeNegativeZero(const Value *V, unsigned Depth) {
 
   const Operator *I = dyn_cast<Operator>(V);
   if (I == 0) return false;
-  
+
+  // Check if the nsz fast-math flag is set
+  if (const FPMathOperator *FPO = dyn_cast<FPMathOperator>(I))
+    if (FPO->hasNoSignedZeros())
+      return true;
+
   // (add x, 0.0) is guaranteed to return +0.0, not -0.0.
   if (I->getOpcode() == Instruction::FAdd &&
       isa<ConstantFP>(I->getOperand(1)) && 

@@ -35,7 +35,7 @@ void DWARFContext::dump(raw_ostream &OS) {
     set.dump(OS);
 
   uint8_t savedAddressByteSize = 0;
-  OS << "\n.debug_lines contents:\n";
+  OS << "\n.debug_line contents:\n";
   for (unsigned i = 0, e = getNumCompileUnits(); i != e; ++i) {
     DWARFCompileUnit *cu = getCompileUnitAtIndex(i);
     savedAddressByteSize = cu->getAddressByteSize();
@@ -91,8 +91,10 @@ const DWARFDebugAranges *DWARFContext::getDebugAranges() {
 
   Aranges.reset(new DWARFDebugAranges());
   Aranges->extract(arangesData);
-  if (Aranges->isEmpty()) // No aranges in file, generate them from the DIEs.
-    Aranges->generate(this);
+  // Generate aranges from DIEs: even if .debug_aranges section is present,
+  // it may describe only a small subset of compilation units, so we need to
+  // manually build aranges for the rest of them.
+  Aranges->generate(this);
   return Aranges.get();
 }
 
