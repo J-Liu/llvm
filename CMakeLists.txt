@@ -83,6 +83,7 @@ set(LLVM_ALL_TARGETS
   NVPTX
   PowerPC
   Sparc
+  UniCore
   X86
   XCore
   )
