@@ -96,13 +96,40 @@ UniCoreTargetLowering::LowerCCCArguments(SDValue Chain,
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
 
-    unsigned ObjSize = VA.getLocVT().getSizeInBits()/8;
+    if (VA.isRegLoc()) {
+      // Arguments passed in registers
+      EVT RegVT = VA.getLocVT();
+      switch (RegVT.getSimpleVT().SimpleTy) {
+      default:
+        {
+#ifndef NDEBUG
+          errs() << "LowerFormalArguments Unhandled argument type: "
+                 << RegVT.getSimpleVT().SimpleTy << "\n";
+#endif
+          llvm_unreachable(0);
+	}
+      case MVT::i32:
+        unsigned VReg = RegInfo.createVirtualRegister(&UniCore::GPRRegsRegClass);
+        RegInfo.addLiveIn(VA.getLocReg(), VReg);
+        SDValue ArgValue = DAG.getCopyFromReg(Chain, dl, VReg, RegVT);
 
-    int FI = MFI->CreateFixedObject(ObjSize, VA.getLocMemOffset(), true);
-    SDValue FIN = DAG.getFrameIndex(FI, MVT::i32);
-    InVals.push_back(DAG.getLoad(VA.getLocVT(), dl, Chain, FIN,
-                     MachinePointerInfo::getFixedStack(FI),
-                     false, false, false, 0));
+        if (VA.getLocInfo() != CCValAssign::Full)
+          ArgValue = DAG.getNode(ISD::TRUNCATE, dl, VA.getValVT(), ArgValue);
+
+        InVals.push_back(ArgValue);
+      }
+    } else {
+      // Sanity check
+      assert(VA.isMemLoc());
+
+      unsigned ObjSize = VA.getLocVT().getSizeInBits()/8;
+
+      int FI = MFI->CreateFixedObject(ObjSize, VA.getLocMemOffset(), true);
+      SDValue FIN = DAG.getFrameIndex(FI, MVT::i32);
+      InVals.push_back(DAG.getLoad(VA.getLocVT(), dl, Chain, FIN,
+                       MachinePointerInfo::getFixedStack(FI),
+                       false, false, false, 0));
+    }
   }
 
   return Chain;
