@@ -7,15 +7,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/IRBuilder.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/ADT/OwningPtr.h"
-#include "llvm/BasicBlock.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Function.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/MDBuilder.h"
-#include "llvm/Module.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/MDBuilder.h"
+#include "llvm/IR/Module.h"
 #include "gtest/gtest.h"
 
 using namespace llvm;
@@ -97,6 +97,13 @@ TEST_F(IRBuilderTest, CreateCondBr) {
   EXPECT_EQ(TBB, TI->getSuccessor(0));
   EXPECT_EQ(FBB, TI->getSuccessor(1));
   EXPECT_EQ(Weights, TI->getMetadata(LLVMContext::MD_prof));
+}
+
+TEST_F(IRBuilderTest, LandingPadName) {
+  IRBuilder<> Builder(BB);
+  LandingPadInst *LP = Builder.CreateLandingPad(Builder.getInt32Ty(),
+                                                Builder.getInt32(0), 0, "LP");
+  EXPECT_EQ(LP->getName(), "LP");
 }
 
 TEST_F(IRBuilderTest, GetIntTy) {

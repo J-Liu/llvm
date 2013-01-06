@@ -9,7 +9,6 @@
 
 #ifndef XCOREMCINSTLOWER_H
 #define XCOREMCINSTLOWER_H
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/Support/Compiler.h"
 
@@ -22,8 +21,7 @@ namespace llvm {
   class Mangler;
   class AsmPrinter;
 
-/// XCoreMCInstLower - This class is used to lower an MachineInstr into an
-//                     MCInst.
+/// \brief This class is used to lower an MachineInstr into an MCInst.
 class LLVM_LIBRARY_VISIBILITY XCoreMCInstLower {
   typedef MachineOperand::MachineOperandType MachineOperandType;
   MCContext *Ctx;

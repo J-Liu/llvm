@@ -17,11 +17,11 @@
 #include "DwarfAccelTable.h"
 #include "DwarfDebug.h"
 #include "llvm/ADT/APFloat.h"
-#include "llvm/Constants.h"
 #include "llvm/DIBuilder.h"
-#include "llvm/DataLayout.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/Instructions.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/Mangler.h"
@@ -33,8 +33,9 @@ using namespace llvm;
 
 /// CompileUnit - Compile unit constructor.
 CompileUnit::CompileUnit(unsigned UID, unsigned L, DIE *D, AsmPrinter *A,
-                         DwarfDebug *DW)
-  : UniqueID(UID), Language(L), CUDie(D), Asm(A), DD(DW), IndexTyDie(0) {
+                         DwarfDebug *DW, DwarfUnits *DWU)
+  : UniqueID(UID), Language(L), CUDie(D), Asm(A), DD(DW), DU(DWU),
+    IndexTyDie(0) {
   DIEIntegerOne = new (DIEValueAllocator) DIEInteger(1);
 }
 
@@ -127,12 +128,12 @@ void CompileUnit::addSInt(DIE *Die, unsigned Attribute,
 /// reference to the string pool instead of immediate strings so that DIEs have
 /// more predictable sizes.
 void CompileUnit::addString(DIE *Die, unsigned Attribute, StringRef String) {
-  MCSymbol *Symb = DD->getStringPoolEntry(String);
+  MCSymbol *Symb = DU->getStringPoolEntry(String);
   DIEValue *Value;
   if (Asm->needsRelocationsForDwarfStringPool())
     Value = new (DIEValueAllocator) DIELabel(Symb);
   else {
-    MCSymbol *StringPool = DD->getStringPool();
+    MCSymbol *StringPool = DU->getStringPoolSym();
     Value = new (DIEValueAllocator) DIEDelta(Symb, StringPool);
   }
   Die->addValue(Attribute, dwarf::DW_FORM_strp, Value);
@@ -1328,10 +1329,13 @@ void CompileUnit::constructArrayTypeDIE(DIE &Buffer,
   DIArray Elements = CTy->getTypeArray();
 
   // Get an anonymous type for index type.
+  // FIXME: This type should be passed down from the front end
+  // as different languages may have different sizes for indexes.
   DIE *IdxTy = getIndexTyDie();
   if (!IdxTy) {
     // Construct an anonymous type for index type.
     IdxTy = new DIE(dwarf::DW_TAG_base_type);
+    addString(IdxTy, dwarf::DW_AT_name, "int");
     addUInt(IdxTy, dwarf::DW_AT_byte_size, 0, sizeof(int32_t));
     addUInt(IdxTy, dwarf::DW_AT_encoding, dwarf::DW_FORM_data1,
             dwarf::DW_ATE_signed);
@@ -1374,8 +1378,6 @@ void CompileUnit::constructContainingTypeDIEs() {
 /// constructVariableDIE - Construct a DIE for the given DbgVariable.
 DIE *CompileUnit::constructVariableDIE(DbgVariable *DV, bool isScopeAbstract) {
   StringRef Name = DV->getName();
-  if (Name.empty())
-    return NULL;
 
   // Translate tag to proper Dwarf tag.
   unsigned Tag = DV->getTag();

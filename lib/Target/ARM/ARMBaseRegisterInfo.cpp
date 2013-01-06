@@ -27,10 +27,10 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/CodeGen/VirtRegMap.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
-#include "llvm/LLVMContext.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -45,7 +45,7 @@ using namespace llvm;
 
 ARMBaseRegisterInfo::ARMBaseRegisterInfo(const ARMBaseInstrInfo &tii,
                                          const ARMSubtarget &sti)
-  : ARMGenRegisterInfo(ARM::LR), TII(tii), STI(sti),
+  : ARMGenRegisterInfo(ARM::LR, 0, 0, ARM::PC), TII(tii), STI(sti),
     FramePtr((STI.isTargetDarwin() || STI.isThumb()) ? ARM::R7 : ARM::R11),
     BasePtr(ARM::R6) {
 }
@@ -326,7 +326,8 @@ needsStackRealignment(const MachineFunction &MF) const {
   unsigned StackAlign = MF.getTarget().getFrameLowering()->getStackAlignment();
   bool requiresRealignment =
     ((MFI->getMaxAlignment() > StackAlign) ||
-     F->getFnAttributes().hasAttribute(Attributes::StackAlignment));
+     F->getAttributes().hasAttribute(AttributeSet::FunctionIndex,
+                                     Attribute::StackAlignment));
 
   return requiresRealignment && canRealignStack(MF);
 }

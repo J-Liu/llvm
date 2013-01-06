@@ -227,10 +227,9 @@ public:
 };
 
 
-// Test if SequenceTraits<T> is defined on type T
-// and SequenceTraits<T>::flow is *not* defined.
+// Test if SequenceTraits<T> is defined on type T.
 template <class T>
-struct has_SequenceTraits
+struct has_SequenceMethodTraits
 {
   typedef size_t (*Signature_size)(class IO&, T&);
 
@@ -240,41 +239,46 @@ struct has_SequenceTraits
   template <typename U>
   static double test(...);
 
-  template <typename U> static
-  char flowtest( char[sizeof(&U::flow)] ) ;
+public:
+  static bool const value =  (sizeof(test<SequenceTraits<T> >(0)) == 1);
+};
 
-  template <typename U>
-  static double flowtest(...);
+
+// has_FlowTraits<int> will cause an error with some compilers because
+// it subclasses int.  Using this wrapper only instantiates the
+// real has_FlowTraits only if the template type is a class.
+template <typename T, bool Enabled = llvm::is_class<T>::value>
+class has_FlowTraits
+{
+public:
+   static const bool value = false;
+};
+
+// Some older gcc compilers don't support straight forward tests
+// for members, so test for ambiguity cause by the base and derived
+// classes both defining the member.
+template <class T>
+struct has_FlowTraits<T, true>
+{
+  struct Fallback { bool flow; };
+  struct Derived : T, Fallback { };
+
+  template<typename C>
+  static char (&f(SameType<bool Fallback::*, &C::flow>*))[1];
+
+  template<typename C>
+  static char (&f(...))[2];
 
 public:
-  static bool const value =  (sizeof(test<SequenceTraits<T> >(0)) == 1)
-                          && (sizeof(flowtest<T>(0)) != 1);
+  static bool const value = sizeof(f<Derived>(0)) == 2;
 };
+
 
 
 // Test if SequenceTraits<T> is defined on type T
-// and SequenceTraits<T>::flow is defined.
-template <class T>
-struct has_FlowSequenceTraits
-{
-  typedef size_t (*Signature_size)(class IO&, T&);
-
-  template <typename U>
-  static char test(SameType<Signature_size, &U::size>*);
-
-  template <typename U>
-  static double test(...);
-
-  template <typename U> static
-  char flowtest( char[sizeof(&U::flow)] ) ;
-
-  template <typename U>
-  static double flowtest(...);
-
-public:
-  static bool const value =  (sizeof(test<SequenceTraits<T> >(0)) == 1)
-                          && (sizeof(flowtest<T>(0)) == 1);
-};
+template<typename T>
+struct has_SequenceTraits : public  llvm::integral_constant<bool,
+                                      has_SequenceMethodTraits<T>::value > { };
 
 
 // Test if DocumentListTraits<T> is defined on type T
@@ -303,7 +307,6 @@ struct missingTraits : public  llvm::integral_constant<bool,
                                       && !has_ScalarTraits<T>::value
                                       && !has_MappingTraits<T>::value
                                       && !has_SequenceTraits<T>::value
-                                      && !has_FlowSequenceTraits<T>::value
                                       && !has_DocumentListTraits<T>::value >  {};
 
 
@@ -345,7 +348,7 @@ public:
 
   template <typename T>
   void enumCase(T &Val, const char* Str, const T ConstVal) {
-    if ( matchEnumScalar(Str, (Val == ConstVal)) ) {
+    if ( matchEnumScalar(Str, outputting() && Val == ConstVal) ) {
       Val = ConstVal;
     }
   }
@@ -353,14 +356,14 @@ public:
   // allow anonymous enum values to be used with LLVM_YAML_STRONG_TYPEDEF
   template <typename T>
   void enumCase(T &Val, const char* Str, const uint32_t ConstVal) {
-    if ( matchEnumScalar(Str, (Val == static_cast<T>(ConstVal))) ) {
+    if ( matchEnumScalar(Str, outputting() && Val == static_cast<T>(ConstVal)) ) {
       Val = ConstVal;
     }
   }
 
   template <typename T>
   void bitSetCase(T &Val, const char* Str, const T ConstVal) {
-    if ( bitSetMatch(Str, ((Val & ConstVal) == ConstVal)) ) {
+    if ( bitSetMatch(Str, outputting() && (Val & ConstVal) == ConstVal) ) {
       Val = Val | ConstVal;
     }
   }
@@ -368,7 +371,7 @@ public:
   // allow anonymous enum values to be used with LLVM_YAML_STRONG_TYPEDEF
   template <typename T>
   void bitSetCase(T &Val, const char* Str, const uint32_t ConstVal) {
-    if ( bitSetMatch(Str, ((Val & ConstVal) == ConstVal)) ) {
+    if ( bitSetMatch(Str, outputting() && (Val & ConstVal) == ConstVal) ) {
       Val = Val | ConstVal;
     }
   }
@@ -408,7 +411,7 @@ private:
                                                                 bool Required) {
     void *SaveInfo;
     bool UseDefault;
-    const bool sameAsDefault = (Val == DefaultValue);
+    const bool sameAsDefault = outputting() && Val == DefaultValue;
     if ( this->preflightKey(Key, Required, sameAsDefault, UseDefault,
                                                                   SaveInfo) ) {
       yamlize(*this, Val, Required);
@@ -495,33 +498,31 @@ yamlize(IO &io, T &Val, bool) {
 template<typename T>
 typename llvm::enable_if_c<has_SequenceTraits<T>::value,void>::type
 yamlize(IO &io, T &Seq, bool) {
-  unsigned incount = io.beginSequence();
-  unsigned count = io.outputting() ? SequenceTraits<T>::size(io, Seq) : incount;
-  for(unsigned i=0; i < count; ++i) {
-    void *SaveInfo;
-    if ( io.preflightElement(i, SaveInfo) ) {
-      yamlize(io, SequenceTraits<T>::element(io, Seq, i), true);
-      io.postflightElement(SaveInfo);
+  if ( has_FlowTraits< SequenceTraits<T> >::value ) {
+    unsigned incnt = io.beginFlowSequence();
+    unsigned count = io.outputting() ? SequenceTraits<T>::size(io, Seq) : incnt;
+    for(unsigned i=0; i < count; ++i) {
+      void *SaveInfo;
+      if ( io.preflightFlowElement(i, SaveInfo) ) {
+        yamlize(io, SequenceTraits<T>::element(io, Seq, i), true);
+        io.postflightFlowElement(SaveInfo);
+      }
     }
+    io.endFlowSequence();
   }
-  io.endSequence();
-}
-
-template<typename T>
-typename llvm::enable_if_c<has_FlowSequenceTraits<T>::value,void>::type
-yamlize(IO &io, T &Seq, bool) {
-  unsigned incount = io.beginFlowSequence();
-  unsigned count = io.outputting() ? SequenceTraits<T>::size(io, Seq) : incount;
-  for(unsigned i=0; i < count; ++i) {
-    void *SaveInfo;
-    if ( io.preflightFlowElement(i, SaveInfo) ) {
-      yamlize(io, SequenceTraits<T>::element(io, Seq, i), true);
-      io.postflightFlowElement(SaveInfo);
+  else {
+    unsigned incnt = io.beginSequence();
+    unsigned count = io.outputting() ? SequenceTraits<T>::size(io, Seq) : incnt;
+    for(unsigned i=0; i < count; ++i) {
+      void *SaveInfo;
+      if ( io.preflightElement(i, SaveInfo) ) {
+        yamlize(io, SequenceTraits<T>::element(io, Seq, i), true);
+        io.postflightElement(SaveInfo);
+      }
     }
+    io.endSequence();
   }
-  io.endFlowSequence();
 }
-
 
 
 template<>

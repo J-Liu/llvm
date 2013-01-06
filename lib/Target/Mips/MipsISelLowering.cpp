@@ -21,7 +21,6 @@
 #include "MipsTargetMachine.h"
 #include "MipsTargetObjectFile.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/CallingConv.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -29,10 +28,11 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
 #include "llvm/CodeGen/ValueTypes.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/Intrinsics.h"
+#include "llvm/IR/CallingConv.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -520,7 +520,9 @@ MipsTargetLowering::allowsUnalignedMemoryAccesses(EVT VT, bool *Fast) const {
 }
 
 EVT MipsTargetLowering::getSetCCResultType(EVT VT) const {
-  return MVT::i32;
+  if (!VT.isVector())
+    return MVT::i32;
+  return VT.changeVectorElementTypeToInteger();
 }
 
 // SelectMadd -
@@ -1048,7 +1050,6 @@ LowerOperation(SDValue Op, SelectionDAG &DAG) const
 static unsigned
 AddLiveIn(MachineFunction &MF, unsigned PReg, const TargetRegisterClass *RC)
 {
-  assert(RC->contains(PReg) && "Not the correct regclass!");
   unsigned VReg = MF.getRegInfo().createVirtualRegister(RC);
   MF.getRegInfo().addLiveIn(PReg, VReg);
   return VReg;
@@ -3100,7 +3101,8 @@ MipsTargetLowering::LowerFormalArguments(SDValue Chain,
       const TargetRegisterClass *RC;
 
       if (RegVT == MVT::i32)
-        RC = &Mips::CPURegsRegClass;
+        RC = Subtarget->inMips16Mode()? &Mips::CPU16RegsRegClass :
+                                        &Mips::CPURegsRegClass;
       else if (RegVT == MVT::i64)
         RC = &Mips::CPU64RegsRegClass;
       else if (RegVT == MVT::f32)

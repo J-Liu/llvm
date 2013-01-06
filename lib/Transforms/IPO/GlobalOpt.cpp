@@ -22,14 +22,14 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
-#include "llvm/CallingConv.h"
-#include "llvm/Constants.h"
-#include "llvm/DataLayout.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Instructions.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/Module.h"
-#include "llvm/Operator.h"
+#include "llvm/IR/CallingConv.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Operator.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/Debug.h"
@@ -2067,12 +2067,12 @@ static void ChangeCalleesToFastCall(Function *F) {
 
 static AttributeSet StripNest(LLVMContext &C, const AttributeSet &Attrs) {
   for (unsigned i = 0, e = Attrs.getNumSlots(); i != e; ++i) {
-    if (!Attrs.getSlot(i).Attrs.hasAttribute(Attributes::Nest))
+    if (!Attrs.getSlot(i).Attrs.hasAttribute(Attribute::Nest))
       continue;
 
     // There can be only one.
     return Attrs.removeAttr(C, Attrs.getSlot(i).Index,
-                            Attributes::get(C, Attributes::Nest));
+                            Attribute::get(C, Attribute::Nest));
   }
 
   return Attrs;
@@ -2113,7 +2113,7 @@ bool GlobalOpt::OptimizeFunctions(Module &M) {
         Changed = true;
       }
 
-      if (F->getAttributes().hasAttrSomewhere(Attributes::Nest) &&
+      if (F->getAttributes().hasAttrSomewhere(Attribute::Nest) &&
           !F->hasAddressTaken()) {
         // The function is not used by a trampoline intrinsic, so it is safe
         // to remove the 'nest' attribute.

@@ -17,6 +17,7 @@
 #include "MCTargetDesc/AMDGPUMCCodeEmitter.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCFixup.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
@@ -149,6 +150,11 @@ uint64_t SIMCCodeEmitter::getMachineOpValue(const MCInst &MI,
     } Imm;
     Imm.F = MO.getFPImm();
     return Imm.I;
+  } else if (MO.isExpr()) {
+    const MCExpr *Expr = MO.getExpr();
+    MCFixupKind Kind = MCFixupKind(FK_PCRel_4);
+    Fixups.push_back(MCFixup::Create(0, Expr, Kind, MI.getLoc()));
+    return 0;
   } else{
     llvm_unreachable("Encoding of this operand type is not supported yet.");
   }

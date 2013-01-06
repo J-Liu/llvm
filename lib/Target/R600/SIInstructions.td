@@ -696,8 +696,9 @@ def S_ENDPGM : SOPP <0x00000001, (ins), "S_ENDPGM",
 let isBranch = 1 in {
 def S_BRANCH : SOPP <
   0x00000002, (ins brtarget:$target), "S_BRANCH",
-  []
->;
+  [(br bb:$target)]> {
+  let isBarrier = 1;
+}
 
 let DisableEncoding = "$scc" in {
 def S_CBRANCH_SCC0 : SOPP <
@@ -971,10 +972,10 @@ def S_OR_B32 : SOP2_32 <0x00000010, "S_OR_B32", []>;
 def S_OR_B64 : SOP2_64 <0x00000011, "S_OR_B64", []>;
 def S_XOR_B32 : SOP2_32 <0x00000012, "S_XOR_B32", []>;
 def S_XOR_B64 : SOP2_64 <0x00000013, "S_XOR_B64", []>;
-////def S_ANDN2_B32 : SOP2_ANDN2 <0x00000014, "S_ANDN2_B32", []>;
-////def S_ANDN2_B64 : SOP2_ANDN2 <0x00000015, "S_ANDN2_B64", []>;
-////def S_ORN2_B32 : SOP2_ORN2 <0x00000016, "S_ORN2_B32", []>;
-////def S_ORN2_B64 : SOP2_ORN2 <0x00000017, "S_ORN2_B64", []>;
+def S_ANDN2_B32 : SOP2_32 <0x00000014, "S_ANDN2_B32", []>;
+def S_ANDN2_B64 : SOP2_64 <0x00000015, "S_ANDN2_B64", []>;
+def S_ORN2_B32 : SOP2_32 <0x00000016, "S_ORN2_B32", []>;
+def S_ORN2_B64 : SOP2_64 <0x00000017, "S_ORN2_B64", []>;
 def S_NAND_B32 : SOP2_32 <0x00000018, "S_NAND_B32", []>;
 def S_NAND_B64 : SOP2_64 <0x00000019, "S_NAND_B64", []>;
 def S_NOR_B32 : SOP2_32 <0x0000001a, "S_NOR_B32", []>;
@@ -1095,26 +1096,70 @@ def SI_WQM : InstSI <
 
 } // end usesCustomInserter 
 
-// SI Psuedo branch instructions.  These are used by the CFG structurizer pass
+// SI Psuedo instructions. These are used by the CFG structurizer pass
 // and should be lowered to ISA instructions prior to codegen.
 
-let isBranch = 1, isTerminator = 1, mayLoad = 0, mayStore = 0,
-                                                 hasSideEffects = 0 in {
-def SI_IF_NZ : InstSI <
-  (outs),
-  (ins brtarget:$target, SReg_1:$vcc),
-  "SI_BRANCH_NZ",
-  [(IL_brcond bb:$target, SReg_1:$vcc)]
+let mayLoad = 1, mayStore = 1, hasSideEffects = 1,
+    Uses = [EXEC], Defs = [EXEC] in {
+
+let isBranch = 1, isTerminator = 1 in {
+
+def SI_IF : InstSI <
+  (outs SReg_64:$dst),
+  (ins SReg_1:$vcc, brtarget:$target),
+  "SI_IF",
+  [(set SReg_64:$dst, (int_SI_if SReg_1:$vcc, bb:$target))]
 >;
 
-def SI_IF_Z : InstSI <
+def SI_ELSE : InstSI <
+  (outs SReg_64:$dst),
+  (ins SReg_64:$src, brtarget:$target),
+  "SI_ELSE",
+  [(set SReg_64:$dst, (int_SI_else SReg_64:$src, bb:$target))]> {
+
+  let Constraints = "$src = $dst";
+}
+
+def SI_LOOP : InstSI <
   (outs),
-  (ins brtarget:$target, SReg_1:$vcc),
-  "SI_BRANCH_Z",
-  []
+  (ins SReg_64:$saved, brtarget:$target),
+  "SI_LOOP",
+  [(int_SI_loop SReg_64:$saved, bb:$target)]
 >;
-} // end isBranch = 1, isTerminator = 1, mayLoad = 0, mayStore = 0,
-  //     hasSideEffects = 0
+
+} // end isBranch = 1, isTerminator = 1
+
+def SI_BREAK : InstSI <
+  (outs SReg_64:$dst),
+  (ins SReg_64:$src),
+  "SI_ELSE",
+  [(set SReg_64:$dst, (int_SI_break SReg_64:$src))]
+>;
+
+def SI_IF_BREAK : InstSI <
+  (outs SReg_64:$dst),
+  (ins SReg_1:$vcc, SReg_64:$src),
+  "SI_IF_BREAK",
+  [(set SReg_64:$dst, (int_SI_if_break SReg_1:$vcc, SReg_64:$src))]
+>;
+
+def SI_ELSE_BREAK : InstSI <
+  (outs SReg_64:$dst),
+  (ins SReg_64:$src0, SReg_64:$src1),
+  "SI_ELSE_BREAK",
+  [(set SReg_64:$dst, (int_SI_else_break SReg_64:$src0, SReg_64:$src1))]
+>;
+
+def SI_END_CF : InstSI <
+  (outs),
+  (ins SReg_64:$saved),
+  "SI_END_CF",
+  [(int_SI_end_cf SReg_64:$saved)]
+>;
+
+} // end mayLoad = 1, mayStore = 1, hasSideEffects = 1
+  // Uses = [EXEC], Defs = [EXEC]
+
 } // end IsCodeGenOnly, isPseudo
 
 /* int_SI_vs_load_input */
