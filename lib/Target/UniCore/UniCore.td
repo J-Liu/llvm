@@ -33,7 +33,7 @@ include "UniCoreSchedule.td"
 // UniCore processors supported.
 //===----------------------------------------------------------------------===//
 class Proc<string Name, list<SubtargetFeature> Features>
- : Processor<Name, NoItineraries, Features>;
+ : Processor<Name, UniCoreGenericItineraries, Features>;
 
 def : Proc<"unicore32", []>;
 

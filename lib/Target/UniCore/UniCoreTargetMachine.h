@@ -34,6 +34,7 @@ namespace llvm {
   UniCoreTargetLowering     TLInfo;
   UniCoreSelectionDAGInfo   TSInfo;
   UniCoreFrameLowering      FrameLowering;
+  InstrItineraryData        InstrItins;
 
   public:
     UniCoreTargetMachine(const Target &T, StringRef TT,
@@ -63,6 +64,9 @@ namespace llvm {
     virtual const TargetFrameLowering *getFrameLowering() const {
       return &FrameLowering;
     }
+
+    virtual const InstrItineraryData *getInstrItineraryData() const
+    {  return &InstrItins; }
 
     virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
   };

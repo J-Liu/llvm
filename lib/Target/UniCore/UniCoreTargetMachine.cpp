@@ -34,7 +34,8 @@ UniCoreTargetMachine(const Target &T, StringRef TT,
     Subtarget(TT, CPU, FS),
     DL("e-p:32:32:32-i8:8:8-i16:16:16-i32:32:32-n32"),
     InstrInfo(*this), TLInfo(*this), TSInfo(*this),
-    FrameLowering(Subtarget)
+    FrameLowering(Subtarget),
+    InstrItins(Subtarget.getInstrItineraryData())
 {
 }
 
