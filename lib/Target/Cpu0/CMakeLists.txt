@@ -11,6 +11,7 @@ tablegen(LLVM Cpu0GenSubtargetInfo.inc -gen-subtarget)
 add_public_tablegen_target(Cpu0CommonTableGen)
 
 add_llvm_target(Cpu0CodeGen
+  Cpu0AnalyzeImmediate.cpp
   Cpu0AsmPrinter.cpp
   Cpu0InstrInfo.cpp
   Cpu0ISelDAGToDAG.cpp
