@@ -87,6 +87,7 @@ namespace llvm {
     const Cpu0Subtarget *Subtarget;
 
     // Lower Operand specifics
+    SDValue LowerBRCOND(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
 
     //- must be exist without function all

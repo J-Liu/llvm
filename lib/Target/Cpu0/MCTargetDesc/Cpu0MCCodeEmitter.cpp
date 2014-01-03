@@ -71,6 +71,21 @@ public:
   // binary encoding for an instruction.
   uint64_t getBinaryCodeForInstr(const MCInst &MI,
                                  SmallVectorImpl<MCFixup> &Fixups) const;
+
+  // getBranch24TargetOpValue - Return binary encoding of the branch
+  // target operand, such as JMP #BB01, JEQ, JSUB. If the machine operand
+  // requires relocation, record the relocation and return zero.
+  unsigned getBranch24TargetOpValue(const MCInst &MI, unsigned OpNo,
+                                  SmallVectorImpl<MCFixup> &Fixups) const;
+
+  // getJumpTargetOpValue - Return binary encoding of the jump
+  // target operand, such as SWI #interrupt_addr and JSUB #function_addr.
+  // If the machine operand requires relocation,
+  // record the relocation and return zero.
+   unsigned getJumpTargetOpValue(const MCInst &MI, unsigned OpNo,
+                                 SmallVectorImpl<MCFixup> &Fixups) const;
+  // lbd document - mark - unsigned getJumpTargetOpValue
+
   // getMachineOpValue - Return binary encoding of operand. If the machin
   // operand requires relocation, record the relocation and return zero.
   unsigned getMachineOpValue(const MCInst &MI,const MCOperand &MO,
@@ -125,6 +140,48 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
 
   EmitInstruction(Binary, Size, OS);
 }
+
+/// getBranch24TargetOpValue - Return binary encoding of the branch
+/// target operand. If the machine operand requires relocation,
+/// record the relocation and return zero.
+unsigned Cpu0MCCodeEmitter::
+getBranch24TargetOpValue(const MCInst &MI, unsigned OpNo,
+                       SmallVectorImpl<MCFixup> &Fixups) const {
+
+  const MCOperand &MO = MI.getOperand(OpNo);
+
+  // If the destination is an immediate, we have nothing to do.
+  if (MO.isImm()) return MO.getImm();
+  assert(MO.isExpr() && "getBranch24TargetOpValue expects only expressions");
+
+  const MCExpr *Expr = MO.getExpr();
+  Fixups.push_back(MCFixup::Create(0, Expr,
+                                   MCFixupKind(Cpu0::fixup_Cpu0_PC24)));
+  return 0;
+}
+
+/// getJumpTargetOpValue - Return binary encoding of the jump
+/// target operand. Such as SWI and JSUB.
+/// If the machine operand requires relocation,
+/// record the relocation and return zero.
+unsigned Cpu0MCCodeEmitter::
+getJumpTargetOpValue(const MCInst &MI, unsigned OpNo,
+                     SmallVectorImpl<MCFixup> &Fixups) const {
+
+  unsigned Opcode = MI.getOpcode();
+  const MCOperand &MO = MI.getOperand(OpNo);
+  // If the destination is an immediate, we have nothing to do.
+  if (MO.isImm()) return MO.getImm();
+  assert(MO.isExpr() && "getJumpTargetOpValue expects only expressions");
+
+  const MCExpr *Expr = MO.getExpr();
+  if (Opcode == Cpu0::JMP)
+    Fixups.push_back(MCFixup::Create(0, Expr,
+                                     MCFixupKind(Cpu0::fixup_Cpu0_PC24)));
+  else
+    llvm_unreachable("unexpect opcode in getJumpAbsoluteTargetOpValue()");
+  return 0;
+} // lbd document - mark - getJumpTargetOpValue
 
 /// getMachineOpValue - Return binary encoding of operand. If the machine
 /// operand requires relocation, record the relocation and return zero.
