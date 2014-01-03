@@ -84,6 +84,7 @@ public:
     return *getCpu0TargetMachine().getSubtargetImpl();
   } // lbd document - mark - getCpu0Subtarget()
   virtual bool addInstSelector();
+  virtual bool addPreRegAlloc();
 };
 } // namespace
 
@@ -97,3 +98,10 @@ bool Cpu0PassConfig::addInstSelector() {
   addPass(createCpu0ISelDag(getCpu0TargetMachine()));
   return false;
 } // lbd document - mark - addInstSelector()
+
+bool Cpu0PassConfig::addPreRegAlloc() {
+  // $gp is a caller-saved register.
+
+  addPass(createCpu0EmitGPRestorePass(getCpu0TargetMachine()));
+  return true;
+}

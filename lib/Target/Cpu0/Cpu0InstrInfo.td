@@ -423,6 +423,14 @@ def ADJCALLSTACKUP   : Cpu0Pseudo<(outs), (ins uimm16:$amt1, uimm16:$amt2),
                                   [(callseq_end timm:$amt1, timm:$amt2)]>;
 }
 
+// When handling PIC code the assembler needs .cpload and .cprestore
+// directives. If the real instructions corresponding these directives
+// are used, we have the same behavior, but get also a bunch of warnings
+// from the assembler.
+let neverHasSideEffects = 1 in
+def CPRESTORE : Cpu0Pseudo<(outs), (ins i32imm:$loc, CPURegs:$gp),
+                           ".cprestore\t$loc", []>;
+
 //===----------------------------------------------------------------------===//
 // Instruction definition
 //===----------------------------------------------------------------------===//
@@ -490,6 +498,7 @@ let isReturn=1, isTerminator=1, hasDelaySlot=1, isBarrier=1, hasCtrlDep=1 in
   def RetLR : Cpu0Pseudo<(outs), (ins), "", [(Cpu0Ret)]>;
 
 def RET     : RetBase<CPURegs>;
+def IRET    : JumpFR<0x3d, "iret", CPURegs>;
 
 def JALR    : JumpLinkReg<0x3e, "jalr", CPURegs>;
 

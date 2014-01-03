@@ -41,6 +41,19 @@
 
 using namespace llvm;
 
+void Cpu0AsmPrinter::EmitInstrWithMacroNoAT(const MachineInstr *MI) {
+  MCInst TmpInst;
+
+  MCInstLowering.Lower(MI, TmpInst);
+  OutStreamer.EmitRawText(StringRef("\t.set\tmacro"));
+  if (Cpu0FI->getEmitNOAT())
+    OutStreamer.EmitRawText(StringRef("\t.set\tat"));
+  OutStreamer.EmitInstruction(TmpInst);
+  if (Cpu0FI->getEmitNOAT())
+    OutStreamer.EmitRawText(StringRef("\t.set\tnoat"));
+  OutStreamer.EmitRawText(StringRef("\t.set\tnomacro"));
+} // lbd document - mark - EmitInstrWithMacroNoAT
+
 bool Cpu0AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   Cpu0FI = MF.getInfo<Cpu0FunctionInfo>();
   AsmPrinter::runOnMachineFunction(MF);
@@ -57,7 +70,37 @@ void Cpu0AsmPrinter::EmitInstruction(const MachineInstr *MI) {
     return;
   }
 
+  unsigned Opc = MI->getOpcode();
   MCInst TmpInst0;
+  SmallVector<MCInst, 4> MCInsts;
+
+  switch (Opc) {
+  case Cpu0::CPRESTORE: {
+    const MachineOperand &MO = MI->getOperand(0);
+    assert(MO.isImm() && "CPRESTORE's operand must be an immediate.");
+    int64_t Offset = MO.getImm();
+
+    if (OutStreamer.hasRawTextSupport()) {
+      if (!isInt<16>(Offset)) {
+        EmitInstrWithMacroNoAT(MI);
+        return;
+      }
+    } else {
+      MCInstLowering.LowerCPRESTORE(Offset, MCInsts);
+
+      for (SmallVector<MCInst, 4>::iterator I = MCInsts.begin();
+           I != MCInsts.end(); ++I)
+        OutStreamer.EmitInstruction(*I);
+
+      return;
+    }
+
+    break;
+  }
+  default:
+    break;
+  } // lbd document - mark - switch (Opc)
+
   MCInstLowering.Lower(MI, TmpInst0);
   OutStreamer.EmitInstruction(TmpInst0);
 }
