@@ -36,6 +36,7 @@ static unsigned adjustFixupValue(unsigned Kind, uint64_t Value) {
   case FK_GPRel_4:
   case FK_Data_4:
   case Cpu0::fixup_Cpu0_LO16:
+  case Cpu0::fixup_Cpu0_GOT_LO16:
     break;
   case Cpu0::fixup_Cpu0_PC24:
     // So far we are only using this type for branches and jump.
@@ -48,6 +49,7 @@ static unsigned adjustFixupValue(unsigned Kind, uint64_t Value) {
     break;
   case Cpu0::fixup_Cpu0_HI16:
   case Cpu0::fixup_Cpu0_GOT_Local:
+  case Cpu0::fixup_Cpu0_GOT_HI16:
     // Get the higher 16-bits. Also add 1 if bit 15 is 1.
     Value = ((Value + 0x8000) >> 16) & 0xffff;
     break;

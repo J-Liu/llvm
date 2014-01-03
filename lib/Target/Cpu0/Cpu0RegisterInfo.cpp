@@ -77,6 +77,11 @@ getReservedRegs(const MachineFunction &MF) const {
   for (unsigned I = 0; I < array_lengthof(ReservedCPURegs); ++I)
     Reserved.set(ReservedCPURegs[I]);
 
+  const Cpu0FunctionInfo *Cpu0FI = MF.getInfo<Cpu0FunctionInfo>();
+  // Reserve GP if globalBaseRegFixed()
+  if (Cpu0FI->globalBaseRegFixed())
+    Reserved.set(Cpu0::GP);
+
   return Reserved;
 } // lbd document - mark - getReservedRegs
 

@@ -14,6 +14,7 @@
 #define DEBUG_TYPE "cpu0-isel"
 
 #include "Cpu0.h"
+#include "Cpu0MachineFunction.h"
 #include "Cpu0RegisterInfo.h"
 #include "Cpu0Subtarget.h"
 #include "Cpu0TargetMachine.h"
@@ -96,6 +97,7 @@ private:
   inline SDValue getImm(const SDNode *Node, unsigned Imm) {
     return CurDAG->getTargetConstant(Imm, Node->getValueType(0));
   }
+  void InitGlobalBaseReg(MachineFunction &MF);
 };
 }
 
@@ -104,6 +106,13 @@ bool Cpu0DAGToDAGISel::runOnMachineFunction(MachineFunction &MF) {
 
   return Ret;
 }
+
+/// getGlobalBaseReg - Output the instructions required to put the
+/// GOT address into a register.
+SDNode *Cpu0DAGToDAGISel::getGlobalBaseReg() {
+  unsigned GlobalBaseReg = MF->getInfo<Cpu0FunctionInfo>()->getGlobalBaseReg();
+  return CurDAG->getRegister(GlobalBaseReg, getTargetLowering()->getPointerTy()).getNode();
+} // lbd document - mark - getGlobalBaseReg()
 
 /// ComplexPattern used on Cpu0InstrInfo
 /// Used on Cpu0 Load/Store instructions
@@ -131,6 +140,19 @@ SelectAddr(SDNode *Parent, SDValue Addr, SDValue &Base, SDValue &Offset) {
     Base   = CurDAG->getTargetFrameIndex(FIN->getIndex(), ValTy);
     Offset = CurDAG->getTargetConstant(0, ValTy);
     return true;
+  }
+
+  // on PIC code Load GA
+  if (Addr.getOpcode() == Cpu0ISD::Wrapper) {
+    Base   = Addr.getOperand(0);
+    Offset = Addr.getOperand(1);
+    return true;
+  }
+
+  if (TM.getRelocationModel() != Reloc::PIC_) {
+    if ((Addr.getOpcode() == ISD::TargetExternalSymbol ||
+        Addr.getOpcode() == ISD::TargetGlobalAddress))
+      return false;
   }
 
   Base   = Addr;
@@ -189,6 +211,16 @@ SDNode* Cpu0DAGToDAGISel::Select(SDNode *Node) {
     MultOpc = (Opcode == ISD::MULHU ? Cpu0::MULTu : Cpu0::MULT);
     return SelectMULT(Node, MultOpc, DL, NodeTy, false, true).second;
   }
+
+  // Get target GOT address.
+  // For global variables as follows,
+  //- @gI = global i32 100, align 4
+  //- %2 = load i32* @gI, align 4
+  // =>
+  //- .cpload	$gp
+  //- ld	$2, %got(gI)($gp)
+  case ISD::GLOBAL_OFFSET_TABLE:
+    return getGlobalBaseReg();
 
   case ISD::Constant: {
     const ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Node);

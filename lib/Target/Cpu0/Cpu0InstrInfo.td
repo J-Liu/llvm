@@ -26,6 +26,13 @@ def SDT_Cpu0DivRem       : SDTypeProfile<0, 2,
                                          [SDTCisInt<0>,
                                           SDTCisSameAs<0, 1>]>;
 
+// Hi and Lo nodes are used to handle global addresses. Used on
+// Cpu0ISelLowering to lower stuff like GlobalAddress, ExternalSymbol
+// static model. (nothing to do with Cpu0 Registers Hi and Lo)
+def Cpu0Hi    : SDNode<"Cpu0ISD::Hi", SDTIntUnaryOp>;
+def Cpu0Lo    : SDNode<"Cpu0ISD::Lo", SDTIntUnaryOp>;
+def Cpu0GPRel : SDNode<"Cpu0ISD::GPRel", SDTIntUnaryOp>;
+
 // Return
 def Cpu0Ret : SDNode<"Cpu0ISD::Ret", SDTNone,
                      [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
@@ -35,6 +42,11 @@ def Cpu0DivRem    : SDNode<"Cpu0ISD::DivRem", SDT_Cpu0DivRem,
                            [SDNPOutGlue]>;
 def Cpu0DivRemU   : SDNode<"Cpu0ISD::DivRemU", SDT_Cpu0DivRem,
                            [SDNPOutGlue]>;
+
+//===----------------------------------------------------------------------===//
+// Cpu0 Instruction Predicate Definitions.
+//===----------------------------------------------------------------------===//
+def RelocPIC    :     Predicate<"TM.getRelocationModel() == Reloc::PIC_">;
 
 //===----------------------------------------------------------------------===//
 // Cpu0 Operand, Complex Patterns and Transformations Definitions.
@@ -389,6 +401,17 @@ def : Pat<(i32 immLow16Zero:$in),
 // Arbitrary immediates
 def : Pat<(i32 imm:$imm),
           (ORi (LUi (HI16 imm:$imm)), (LO16 imm:$imm))>;
+
+// hi/lo relocs
+def : Pat<(Cpu0Hi tglobaladdr:$in), (SHL (ADDiu ZERO, tglobaladdr:$in), 16)>;
+def : Pat<(Cpu0Hi tglobaladdr:$in), (LUi tglobaladdr:$in)>;
+
+def : Pat<(add CPURegs:$hi, (Cpu0Lo tglobaladdr:$lo)),
+          (ADDiu CPURegs:$hi, tglobaladdr:$lo)>;
+
+// gp_rel relocs
+def : Pat<(add CPURegs:$gp, (Cpu0GPRel tglobaladdr:$in)),
+          (ADDiu CPURegs:$gp, tglobaladdr:$in)>;
 
 def : Pat<(not CPURegs:$in),
 // 1: in == 0; 0: in != 0

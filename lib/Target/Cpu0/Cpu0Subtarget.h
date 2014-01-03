@@ -21,6 +21,8 @@
 #define GET_SUBTARGETINFO_HEADER
 #include "Cpu0GenSubtargetInfo.inc"
 
+extern bool Cpu0NoCpload;
+
 namespace llvm {
 class StringRef;
 
@@ -52,6 +54,9 @@ protected:
   // Relocation Model
   Reloc::Model RM;
 
+  // UseSmallSection - Small section is used.
+  bool UseSmallSection;
+
 public:
   unsigned getTargetABI() const { return Cpu0ABI; }
 
@@ -66,6 +71,7 @@ public:
   void ParseSubtargetFeatures(StringRef CPU, StringRef FS);
 
   bool isLittle() const { return IsLittle; }
+  bool useSmallSection() const { return UseSmallSection; }
 };
 } // End llvm namespace
 

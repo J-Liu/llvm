@@ -33,6 +33,85 @@ void Cpu0MCInstLower::Initialize(MCContext* C) {
   Ctx = C;
 } // lbd document - mark - Initialize
 
+MCOperand Cpu0MCInstLower::LowerSymbolOperand(const MachineOperand &MO,
+                                              MachineOperandType MOTy,
+                                              unsigned Offset) const {
+  MCSymbolRefExpr::VariantKind Kind;
+  const MCSymbol *Symbol;
+
+  switch(MO.getTargetFlags()) {
+  default:                   llvm_unreachable("Invalid target flag!");
+  case Cpu0II::MO_NO_FLAG:   Kind = MCSymbolRefExpr::VK_None; break;
+
+// Cpu0_GPREL is for llc -march=cpu0 -relocation-model=static -cpu0-islinux-
+//  format=false (global var in .sdata).
+  case Cpu0II::MO_GPREL:     Kind = MCSymbolRefExpr::VK_Cpu0_GPREL; break;
+
+  case Cpu0II::MO_GOT16:     Kind = MCSymbolRefExpr::VK_Cpu0_GOT16; break;
+  case Cpu0II::MO_GOT:       Kind = MCSymbolRefExpr::VK_Cpu0_GOT; break;
+// ABS_HI and ABS_LO is for llc -march=cpu0 -relocation-model=static (global
+//  var in .data).
+  case Cpu0II::MO_ABS_HI:    Kind = MCSymbolRefExpr::VK_Cpu0_ABS_HI; break;
+  case Cpu0II::MO_ABS_LO:    Kind = MCSymbolRefExpr::VK_Cpu0_ABS_LO; break;
+  case Cpu0II::MO_GOT_HI16:  Kind = MCSymbolRefExpr::VK_Cpu0_GOT_HI16; break;
+  case Cpu0II::MO_GOT_LO16:  Kind = MCSymbolRefExpr::VK_Cpu0_GOT_LO16; break;
+  }
+
+  switch (MOTy) {
+  case MachineOperand::MO_GlobalAddress:
+    Symbol = AsmPrinter.getSymbol(MO.getGlobal());
+    break;
+
+  default:
+    llvm_unreachable("<unknown operand type>");
+  }
+
+  const MCSymbolRefExpr *MCSym = MCSymbolRefExpr::Create(Symbol, Kind, *Ctx);
+
+  if (!Offset)
+    return MCOperand::CreateExpr(MCSym);
+
+  // Assume offset is never negative.
+  assert(Offset > 0);
+
+  const MCConstantExpr *OffsetExpr =  MCConstantExpr::Create(Offset, *Ctx);
+  const MCBinaryExpr *AddExpr = MCBinaryExpr::CreateAdd(MCSym, OffsetExpr, *Ctx);
+  return MCOperand::CreateExpr(AddExpr);
+} // lbd document - mark - LowerSymbolOperand
+
+static void CreateMCInst(MCInst& Inst, unsigned Opc, const MCOperand& Opnd0,
+                         const MCOperand& Opnd1,
+                         const MCOperand& Opnd2 = MCOperand()) {
+  Inst.setOpcode(Opc);
+  Inst.addOperand(Opnd0);
+  Inst.addOperand(Opnd1);
+  if (Opnd2.isValid())
+    Inst.addOperand(Opnd2);
+}
+
+// Lower ".cpload $reg" to
+//  "lui   $gp, %hi(_gp_disp)"
+//  "addiu $gp, $gp, %lo(_gp_disp)"
+//  "addu  $gp, $gp, $t9"
+void Cpu0MCInstLower::LowerCPLOAD(SmallVector<MCInst, 4>& MCInsts) {
+  MCOperand GPReg = MCOperand::CreateReg(Cpu0::GP);
+  MCOperand T9Reg = MCOperand::CreateReg(Cpu0::T9);
+  StringRef SymName("_gp_disp");
+  const MCSymbol *Sym = Ctx->GetOrCreateSymbol(SymName);
+  const MCSymbolRefExpr *MCSym;
+
+  MCSym = MCSymbolRefExpr::Create(Sym, MCSymbolRefExpr::VK_Cpu0_ABS_HI, *Ctx);
+  MCOperand SymHi = MCOperand::CreateExpr(MCSym);
+  MCSym = MCSymbolRefExpr::Create(Sym, MCSymbolRefExpr::VK_Cpu0_ABS_LO, *Ctx);
+  MCOperand SymLo = MCOperand::CreateExpr(MCSym);
+
+  MCInsts.resize(3);
+
+  CreateMCInst(MCInsts[0], Cpu0::LUi, GPReg, SymHi);
+  CreateMCInst(MCInsts[1], Cpu0::ADDiu, GPReg, GPReg, SymLo);
+  CreateMCInst(MCInsts[2], Cpu0::ADD, GPReg, GPReg, T9Reg);
+} // lbd document - mark - LowerCPLOAD
+
 MCOperand Cpu0MCInstLower::LowerOperand(const MachineOperand& MO,
                                         unsigned offset) const {
   MachineOperandType MOTy = MO.getType();
@@ -45,6 +124,8 @@ MCOperand Cpu0MCInstLower::LowerOperand(const MachineOperand& MO,
     return MCOperand::CreateReg(MO.getReg());
   case MachineOperand::MO_Immediate:
     return MCOperand::CreateImm(MO.getImm() + offset);
+  case MachineOperand::MO_GlobalAddress:
+    return LowerSymbolOperand(MO, MOTy, offset);
   case MachineOperand::MO_RegisterMask:
     break;
  }

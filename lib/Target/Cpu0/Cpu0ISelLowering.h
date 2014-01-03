@@ -25,10 +25,32 @@ namespace llvm {
     enum NodeType {
       // Start the numbering from where ISD NodeType finishes.
       FIRST_NUMBER = ISD::BUILTIN_OP_END,
+
+      // Jump and link (call)
+      JmpLink,
+
+      // Get the Higher 16 bits from a 32-bit immediate
+      // No relation with Cpu0 Hi register
+      Hi,
+      // Get the Lower 16 bits from a 32-bit immediate
+      // No relation with Cpu0 Lo register
+      Lo,
+
+      // Handle gp_rel (small data/bss sections) relocation.
+      GPRel,
+
+      // Thread Pointer
+      ThreadPointer,
+      // Return
+
       Ret,
       // DivRem(u)
       DivRem,
-      DivRemU
+      DivRemU,
+
+      Wrapper,
+      DynAlloc,
+      Sync
     };
   }
 
@@ -40,11 +62,32 @@ namespace llvm {
   public:
     explicit Cpu0TargetLowering(Cpu0TargetMachine &TM);
 
+    virtual MVT getShiftAmountTy(EVT LHSTy) const { return MVT::i32; }
+    /// LowerOperation - Provide custom lowering hooks for some operations.
+    virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const;
+
+    /// getTargetNodeName - This method returns the name of a target specific
+    //  DAG node.
+    virtual const char *getTargetNodeName(unsigned Opcode) const;
+
     virtual SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const;
+
+  protected:
+    SDValue getGlobalReg(SelectionDAG &DAG, EVT Ty) const;
+
+    SDValue getAddrLocal(SDValue Op, SelectionDAG &DAG) const;
+
+    SDValue getAddrGlobal(SDValue Op, SelectionDAG &DAG, unsigned Flag) const;
+
+    SDValue getAddrGlobalLargeGOT(SDValue Op, SelectionDAG &DAG,
+                                  unsigned HiFlag, unsigned LoFlag) const;
 
   private:
     // Subtarget Info
     const Cpu0Subtarget *Subtarget;
+
+    // Lower Operand specifics
+    SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
 
     //- must be exist without function all
     virtual SDValue

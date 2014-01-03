@@ -23,16 +23,28 @@ namespace llvm {
 /// Cpu0FunctionInfo - This class is derived from MachineFunction private
 /// Cpu0 target-specific information for each MachineFunction.
 class Cpu0FunctionInfo : public MachineFunctionInfo {
+  virtual void anchor();
   MachineFunction& MF;
+
+  /// GlobalBaseReg - keeps track of the virtual register initialized for
+  /// use as the global base register. This is used for PIC in some PIC
+  /// relocation models.
+  unsigned GlobalBaseReg;
+  int GPFI; // Index of the frame object for restoring $gp
   unsigned MaxCallFrameSize;
   bool EmitNOAT;
 
 public:
   Cpu0FunctionInfo(MachineFunction& MF)
   : MF(MF),
+    GlobalBaseReg(0),
     EmitNOAT(false),
     MaxCallFrameSize(0)
     {}
+
+  bool globalBaseRegFixed() const;
+  bool globalBaseRegSet() const;
+  unsigned getGlobalBaseReg();
 
   unsigned getMaxCallFrameSize() const { return MaxCallFrameSize; }
   void setMaxCallFrameSize(unsigned S) { MaxCallFrameSize = S; }

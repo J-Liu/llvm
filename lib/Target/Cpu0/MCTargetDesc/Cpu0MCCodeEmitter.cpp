@@ -155,6 +155,36 @@ getMachineOpValue(const MCInst &MI, const MCOperand &MO,
 
   assert (Kind == MCExpr::SymbolRef);
 
+  Cpu0::Fixups FixupKind = Cpu0::Fixups(0);
+
+  switch(cast<MCSymbolRefExpr>(Expr)->getKind()) {
+  case MCSymbolRefExpr::VK_Cpu0_GPREL:
+    FixupKind = Cpu0::fixup_Cpu0_GPREL16;
+    break;
+  case MCSymbolRefExpr::VK_Cpu0_GOT16:
+    FixupKind = Cpu0::fixup_Cpu0_GOT_Global;
+    break;
+  case MCSymbolRefExpr::VK_Cpu0_GOT:
+    FixupKind = Cpu0::fixup_Cpu0_GOT_Local;
+    break;
+  case MCSymbolRefExpr::VK_Cpu0_ABS_HI:
+    FixupKind = Cpu0::fixup_Cpu0_HI16;
+    break;
+  case MCSymbolRefExpr::VK_Cpu0_ABS_LO:
+    FixupKind = Cpu0::fixup_Cpu0_LO16;
+    break;
+  case MCSymbolRefExpr::VK_Cpu0_GOT_HI16:
+    FixupKind = Cpu0::fixup_Cpu0_GOT_HI16;
+    break;
+  case MCSymbolRefExpr::VK_Cpu0_GOT_LO16:
+    FixupKind = Cpu0::fixup_Cpu0_GOT_LO16;
+    break;
+  default:
+    break;
+  } // switch
+
+  Fixups.push_back(MCFixup::Create(0, MO.getExpr(), MCFixupKind(FixupKind)));
+
   // All of the information is in the fixup.
   return 0;
 }
