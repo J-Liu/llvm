@@ -119,6 +119,26 @@ static MCInstPrinter *createCpu0MCInstPrinter(const Target &T,
   return new Cpu0InstPrinter(MAI, MII, MRI);
 } // lbd document - mark - createCpu0MCInstPrinter
 
+static MCStreamer *createMCStreamer(const Target &T, StringRef TT,
+                                    MCContext &Context, MCAsmBackend &MAB,
+                                    raw_ostream &OS, MCCodeEmitter *Emitter,
+                                    bool RelaxAll, bool NoExecStack) {
+  MCTargetStreamer *S = new MCTargetStreamer();
+  return createELFStreamer(Context, S, MAB, OS, Emitter, RelaxAll, NoExecStack);
+}
+
+static MCStreamer *
+createMCAsmStreamer(MCContext &Ctx, formatted_raw_ostream &OS,
+                    bool isVerboseAsm, bool useLoc, bool useCFI,
+                    bool useDwarfDirectory, MCInstPrinter *InstPrint,
+                    MCCodeEmitter *CE, MCAsmBackend *TAB, bool ShowInst) {
+  MCTargetStreamer *S = new MCTargetStreamer();
+
+  return llvm::createAsmStreamer(Ctx, S, OS, isVerboseAsm, useLoc, useCFI,
+                                 useDwarfDirectory, InstPrint, CE, TAB,
+                                 ShowInst);
+} // lbd document - mark - createMCStreamer
+
 extern "C" void LLVMInitializeCpu0TargetMC() {
   // Register the MC asm info.
   RegisterMCAsmInfoFn X(TheCpu0Target, createCpu0MCAsmInfo);
@@ -136,6 +156,26 @@ extern "C" void LLVMInitializeCpu0TargetMC() {
   // Register the MC register info.
   TargetRegistry::RegisterMCRegInfo(TheCpu0Target, createCpu0MCRegisterInfo);
   TargetRegistry::RegisterMCRegInfo(TheCpu0elTarget, createCpu0MCRegisterInfo);
+
+  // Register the MC Code Emitter
+  TargetRegistry::RegisterMCCodeEmitter(TheCpu0Target,
+                                        createCpu0MCCodeEmitterEB);
+  TargetRegistry::RegisterMCCodeEmitter(TheCpu0elTarget,
+                                        createCpu0MCCodeEmitterEL);
+
+  // Register the object streamer.
+  TargetRegistry::RegisterMCObjectStreamer(TheCpu0Target, createMCStreamer);
+  TargetRegistry::RegisterMCObjectStreamer(TheCpu0elTarget, createMCStreamer);
+
+  // Register the asm streamer.
+  TargetRegistry::RegisterAsmStreamer(TheCpu0Target, createMCAsmStreamer);
+  TargetRegistry::RegisterAsmStreamer(TheCpu0elTarget, createMCAsmStreamer);
+
+  // Register the asm backend.
+  TargetRegistry::RegisterMCAsmBackend(TheCpu0Target,
+                                       createCpu0AsmBackendEB32);
+  TargetRegistry::RegisterMCAsmBackend(TheCpu0elTarget,
+                                       createCpu0AsmBackendEL32);
 
   // Register the MC subtarget info.
   TargetRegistry::RegisterMCSubtargetInfo(TheCpu0Target,

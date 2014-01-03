@@ -782,6 +782,7 @@ error_code ELFObjectFile<ELFT>::getRelocationValueString(
     break;
   }
   case ELF::EM_ARM:
+  case ELF::EM_CPU0:
   case ELF::EM_HEXAGON:
     res = *SymName;
     break;
@@ -916,6 +917,8 @@ StringRef ELFObjectFile<ELFT>::getFileFormatName() const {
       return "ELF32-x86-64";
     case ELF::EM_ARM:
       return "ELF32-arm";
+    case ELF::EM_CPU0:
+      return "ELF32-cpu0";
     case ELF::EM_HEXAGON:
       return "ELF32-hexagon";
     case ELF::EM_MIPS:
@@ -957,6 +960,9 @@ unsigned ELFObjectFile<ELFT>::getArch() const {
     return Triple::aarch64;
   case ELF::EM_ARM:
     return Triple::arm;
+  case ELF::EM_CPU0:
+    return (ELFT::TargetEndianness == support::little) ? Triple::cpu0el
+                                                       : Triple::cpu0;
   case ELF::EM_HEXAGON:
     return Triple::hexagon;
   case ELF::EM_MIPS:

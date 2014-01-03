@@ -287,7 +287,8 @@ enum {
   EM_RL78          = 197, // Renesas RL78 family
   EM_VIDEOCORE5    = 198, // Broadcom VideoCore V processor
   EM_78KOR         = 199, // Renesas 78KOR family
-  EM_56800EX       = 200  // Freescale 56800EX Digital Signal Controller (DSC)
+  EM_56800EX       = 200, // Freescale 56800EX Digital Signal Controller (DSC)
+  EM_CPU0          = 201  // Document LLVM Backend Tutorial Cpu0
 };
 
 // Object file classes.
@@ -798,6 +799,45 @@ enum {
   R_ARM_ME_TOO                = 0x80,
   R_ARM_THM_TLS_DESCSEQ16     = 0x81,
   R_ARM_THM_TLS_DESCSEQ32     = 0x82
+};
+
+// Cpu0 Specific e_flags
+enum {
+  EF_CPU0_NOREORDER = 0x00000001, // Don't reorder instructions
+  EF_CPU0_PIC       = 0x00000002, // Position independent code
+  EF_CPU0_CPIC      = 0x00000004, // Call object with Position independent code
+  EF_CPU0_ARCH_1    = 0x00000000, // CPU01 instruction set
+  EF_CPU0_ARCH_2    = 0x10000000, // CPU02 instruction set
+  EF_CPU0_ARCH_3    = 0x20000000, // CPU03 instruction set
+  EF_CPU0_ARCH_4    = 0x30000000, // CPU04 instruction set
+  EF_CPU0_ARCH_5    = 0x40000000, // CPU05 instruction set
+  EF_CPU0_ARCH_32   = 0x50000000, // CPU032 instruction set per linux not elf.h
+  EF_CPU0_ARCH_64   = 0x60000000, // CPU064 instruction set per linux not elf.h
+  EF_CPU0_ARCH_32R2 = 0x70000000, // cpu032r2
+  EF_CPU0_ARCH_64R2 = 0x80000000, // cpu064r2
+  EF_CPU0_ARCH      = 0xf0000000  // Mask for applying EF_CPU0_ARCH_ variant
+};
+
+// ELF Relocation types for Cpu0
+// .
+enum {
+  R_CPU0_NONE              =  0,
+  R_CPU0_24                =  1,
+  R_CPU0_32                =  2,
+  R_CPU0_HI16              =  5,
+  R_CPU0_LO16              =  6,
+  R_CPU0_GPREL16           =  7,
+  R_CPU0_LITERAL           =  8,
+  R_CPU0_GOT16             =  9,
+  R_CPU0_PC16              = 10,
+  R_CPU0_PC24              = 11,
+  R_CPU0_CALL16            = 12,
+  R_CPU0_GOT_HI16          = 22,
+  R_CPU0_GOT_LO16          = 23,
+  R_CPU0_RELGOT            = 36,
+  R_CPU0_TLS_TPREL32       = 47,
+  R_CPU0_GLOB_DAT          = 51,
+  R_CPU0_JUMP_SLOT         = 127
 };
 
 // Mips Specific e_flags

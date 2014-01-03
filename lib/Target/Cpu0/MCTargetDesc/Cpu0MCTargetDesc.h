@@ -22,6 +22,7 @@ class MCCodeEmitter;
 class MCContext;
 class MCInstrInfo;
 class MCObjectWriter;
+class MCRegisterInfo;
 class MCSubtargetInfo;
 class StringRef;
 class Target;
@@ -30,11 +31,27 @@ class raw_ostream;
 extern Target TheCpu0Target;
 extern Target TheCpu0elTarget;
 
-MCAsmBackend *createCpu0AsmBackendEB32(const Target &T, StringRef TT,
-                                       StringRef CPU);
-MCAsmBackend *createCpu0AsmBackendEL32(const Target &T, StringRef TT,
-                                       StringRef CPU);
+MCCodeEmitter *createCpu0MCCodeEmitterEB(const MCInstrInfo &MCII,
+                                         const MCRegisterInfo &MRI,
+                                         const MCSubtargetInfo &STI,
+                                         MCContext &Ctx);
+MCCodeEmitter *createCpu0MCCodeEmitterEL(const MCInstrInfo &MCII,
+                                         const MCRegisterInfo &MRI,
+                                         const MCSubtargetInfo &STI,
+                                         MCContext &Ctx);
+// lbd document - mark - createCpu0MCCodeEmitterEL
+
+MCAsmBackend *createCpu0AsmBackendEB32(const Target &T,
+                                       const MCRegisterInfo &MRI,
+                                       StringRef TT, StringRef CPU);
+MCAsmBackend *createCpu0AsmBackendEL32(const Target &T,
+                                       const MCRegisterInfo &MRI,
+                                       StringRef TT, StringRef CPU);
 // lbd document - mark - createCpu0AsmBackendEL32
+
+MCObjectWriter *createCpu0ELFObjectWriter(raw_ostream &OS,
+                                          uint8_t OSABI,
+                                          bool IsLittleEndian);
 } // End llvm namespace
 
 // Defines symbolic names for Cpu0 registers.  This defines a mapping from
