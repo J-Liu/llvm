@@ -2,6 +2,7 @@ set(LLVM_TARGET_DEFINITIONS Cpu0.td)
 
 tablegen(LLVM Cpu0GenRegisterInfo.inc -gen-register-info)
 tablegen(LLVM Cpu0GenInstrInfo.inc -gen-instr-info)
+tablegen(LLVM Cpu0GenDisassemblerTables.inc -gen-disassembler)
 tablegen(LLVM Cpu0GenCodeEmitter.inc -gen-emitter)
 tablegen(LLVM Cpu0GenMCCodeEmitter.inc -gen-emitter -mc-emitter)
 tablegen(LLVM Cpu0GenAsmWriter.inc -gen-asm-writer)
@@ -28,5 +29,6 @@ add_llvm_target(Cpu0CodeGen
   )
 
 add_subdirectory(InstPrinter)
+add_subdirectory(Disassembler)
 add_subdirectory(TargetInfo)
 add_subdirectory(MCTargetDesc)

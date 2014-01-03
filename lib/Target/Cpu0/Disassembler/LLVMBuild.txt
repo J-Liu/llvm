@@ -1,4 +1,4 @@
-;===- ./lib/Target/Cpu0/LLVMBuild.txt --------------------------*- Conf -*--===;
+;===- ./lib/Target/Cpu0/Disassembler/LLVMBuild.txt -------------*- Conf -*--===;
 ;
 ;                     The LLVM Compiler Infrastructure
 ;
@@ -15,19 +15,9 @@
 ;
 ;===------------------------------------------------------------------------===;
 
-[common]
-subdirectories = Disassembler InstPrinter MCTargetDesc TargetInfo
-
 [component_0]
-type = TargetGroup
-name = Cpu0
-parent = Target
-has_asmprinter = 1
-has_disassembler = 1
-
-[component_1]
 type = Library
-name = Cpu0CodeGen
+name = Cpu0Disassembler
 parent = Cpu0
-required_libraries = AsmPrinter CodeGen Core Cpu0AsmPrinter Cpu0Desc Cpu0Info MC SelectionDAG Support Target
+required_libraries = Cpu0Info MC Support
 add_to_library_groups = Cpu0

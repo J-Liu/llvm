@@ -197,6 +197,7 @@ class CmpInstr<bits<8> op, string instr_asm,
   let rc = 0;
   let shamt = 0;
   let isCommutable = isComm;
+  let DecoderMethod = "DecodeCMPInstruction";
 } // lbd document - mark - class CmpInstr
 
 // Arithmetic and logical instructions with 2 register operands.
@@ -324,6 +325,7 @@ let isCall=1, hasDelaySlot=0 in {
     FJ<op, (outs), (ins calltarget:$target, variable_ops),
        !strconcat(instr_asm, "\t$target"), [(Cpu0JmpLink imm:$target)],
        IIBranch> {
+       let DecoderMethod = "DecodeJumpAbsoluteTarget";
        }
 
   class JumpLinkReg<bits<8> op, string instr_asm,
@@ -493,6 +495,7 @@ def JMP     : UncondBranch<0x36, "jmp">;
 /// Jump & link and Return Instructions
 def SWI     : JumpLink<0x3a, "swi">;
 def JSUB    : JumpLink<0x3b, "jsub">;
+def JR      : JumpFR<0x3c, "ret", CPURegs>;
 
 let isReturn=1, isTerminator=1, hasDelaySlot=1, isBarrier=1, hasCtrlDep=1 in
   def RetLR : Cpu0Pseudo<(outs), (ins), "", [(Cpu0Ret)]>;
