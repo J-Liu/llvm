@@ -41,6 +41,12 @@ public:
                            unsigned DestReg, unsigned SrcReg,
                            bool KillSrc) const;
 
+  virtual void loadRegFromStackSlot(MachineBasicBlock &MBB,
+                                    MachineBasicBlock::iterator MBBI,
+                                    unsigned DestReg, int FrameIndex,
+                                    const TargetRegisterClass *RC,
+                                    const TargetRegisterInfo *TRI) const;
+
   virtual MachineInstr* emitFrameIndexDebugValue(MachineFunction &MF,
                                                  int FrameIx, uint64_t Offset,
                                                  const MDNode *MDPtr,

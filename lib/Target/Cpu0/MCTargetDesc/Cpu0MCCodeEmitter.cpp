@@ -175,9 +175,12 @@ getJumpTargetOpValue(const MCInst &MI, unsigned OpNo,
   assert(MO.isExpr() && "getJumpTargetOpValue expects only expressions");
 
   const MCExpr *Expr = MO.getExpr();
-  if (Opcode == Cpu0::JMP)
+  if (Opcode == Cpu0::JSUB || Opcode == Cpu0::JMP)
     Fixups.push_back(MCFixup::Create(0, Expr,
                                      MCFixupKind(Cpu0::fixup_Cpu0_PC24)));
+  else if (Opcode == Cpu0::SWI)
+    Fixups.push_back(MCFixup::Create(0, Expr,
+                                     MCFixupKind(Cpu0::fixup_Cpu0_24)));
   else
     llvm_unreachable("unexpect opcode in getJumpAbsoluteTargetOpValue()");
   return 0;
@@ -217,6 +220,9 @@ getMachineOpValue(const MCInst &MI, const MCOperand &MO,
   switch(cast<MCSymbolRefExpr>(Expr)->getKind()) {
   case MCSymbolRefExpr::VK_Cpu0_GPREL:
     FixupKind = Cpu0::fixup_Cpu0_GPREL16;
+    break;
+  case MCSymbolRefExpr::VK_Cpu0_GOT_CALL:
+    FixupKind = Cpu0::fixup_Cpu0_CALL16;
     break;
   case MCSymbolRefExpr::VK_Cpu0_GOT16:
     FixupKind = Cpu0::fixup_Cpu0_GOT_Global;

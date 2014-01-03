@@ -99,6 +99,11 @@ namespace llvm {
                            SmallVectorImpl<SDValue> &InVals) const;
   // LowerFormalArguments: incoming arguments
 
+    virtual SDValue
+      LowerCall(TargetLowering::CallLoweringInfo &CLI,
+                SmallVectorImpl<SDValue> &InVals) const;
+  // LowerCall: outgoing arguments
+
     //- must be exist without function all
     virtual SDValue
       LowerReturn(SDValue Chain,
