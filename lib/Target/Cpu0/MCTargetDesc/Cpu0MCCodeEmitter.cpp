@@ -72,6 +72,13 @@ public:
   uint64_t getBinaryCodeForInstr(const MCInst &MI,
                                  SmallVectorImpl<MCFixup> &Fixups) const;
 
+  // getBranch16TargetOpValue - Return binary encoding of the branch
+  // target operand, such as BEQ, BNE. If the machine operand
+  // requires relocation, record the relocation and return zero.
+  unsigned getBranch16TargetOpValue(const MCInst &MI, unsigned OpNo,
+                                  SmallVectorImpl<MCFixup> &Fixups) const;
+  // lbd document - mark - declare getBranch16TargetOpValue
+
   // getBranch24TargetOpValue - Return binary encoding of the branch
   // target operand, such as JMP #BB01, JEQ, JSUB. If the machine operand
   // requires relocation, record the relocation and return zero.
@@ -140,6 +147,25 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
 
   EmitInstruction(Binary, Size, OS);
 }
+
+/// getBranch16TargetOpValue - Return binary encoding of the branch
+/// target operand. If the machine operand requires relocation,
+/// record the relocation and return zero.
+unsigned Cpu0MCCodeEmitter::
+getBranch16TargetOpValue(const MCInst &MI, unsigned OpNo,
+                       SmallVectorImpl<MCFixup> &Fixups) const {
+
+  const MCOperand &MO = MI.getOperand(OpNo);
+
+  // If the destination is an immediate, we have nothing to do.
+  if (MO.isImm()) return MO.getImm();
+  assert(MO.isExpr() && "getBranch16TargetOpValue expects only expressions");
+
+  const MCExpr *Expr = MO.getExpr();
+  Fixups.push_back(MCFixup::Create(0, Expr,
+                                   MCFixupKind(Cpu0::fixup_Cpu0_PC16)));
+  return 0;
+} // lbd document - mark - getBranch16TargetOpValue
 
 /// getBranch24TargetOpValue - Return binary encoding of the branch
 /// target operand. If the machine operand requires relocation,

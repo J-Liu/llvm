@@ -37,7 +37,9 @@ public:
 
 protected:
   enum Cpu0ArchEnum {
-    Cpu032I
+    Cpu032I,
+    Cpu032II,
+    Cpu032III
   };
 
   // Cpu0 architecture version
@@ -71,6 +73,8 @@ public:
   void ParseSubtargetFeatures(StringRef CPU, StringRef FS);
 
   bool isLittle() const { return IsLittle; }
+  bool hasCpu032I() const { return Cpu0ArchVersion >= Cpu032I; }
+  bool hasCpu032II() const { return Cpu0ArchVersion == Cpu032II; }
   bool useSmallSection() const { return UseSmallSection; }
 };
 } // End llvm namespace
