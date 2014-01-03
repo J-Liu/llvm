@@ -48,6 +48,9 @@ let Namespace = "Cpu0" in {
 //  def MAR  : Register< 16, "mar">,  DwarfRegNum<[16]>;
 //  def MDR  : Register< 17, "mdr">,  DwarfRegNum<[17]>;
 
+  // Hi/Lo registers number and name
+  def HI   : Register<"hi">, DwarfRegNum<[18]>;
+  def LO   : Register<"lo">, DwarfRegNum<[19]>;
   def SW   : Register<"sw">, DwarfRegNum<[20]>;
 }
 
@@ -67,6 +70,9 @@ def CPURegs : RegisterClass<"Cpu0", [i32], 32, (add
   // Reserved
   GP, FP,
   SP, LR, PC)>;
+
+// Hi/Lo Registers class
+def HILO : RegisterClass<"Cpu0", [i32], 32, (add HI, LO)>;
 
 // Status Registers class
 def SR   : RegisterClass<"Cpu0", [i32], 32, (add SW)>;

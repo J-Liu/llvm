@@ -86,6 +86,9 @@ private:
 
   SDNode *getGlobalBaseReg();
 
+  std::pair<SDNode*, SDNode*> SelectMULT(SDNode *N, unsigned Opc, SDLoc DL,
+                                         EVT Ty, bool HasLo, bool HasHi);
+
   SDNode *Select(SDNode *N);
   // Complex Pattern.
   bool SelectAddr(SDNode *Parent, SDValue N, SDValue &Base, SDValue &Offset);
@@ -135,10 +138,32 @@ SelectAddr(SDNode *Parent, SDValue Addr, SDValue &Base, SDValue &Offset) {
   return true;
 }
 
+/// Select multiply instructions.
+std::pair<SDNode*, SDNode*>
+Cpu0DAGToDAGISel::SelectMULT(SDNode *N, unsigned Opc, SDLoc DL, EVT Ty,
+                             bool HasLo, bool HasHi) {
+  SDNode *Lo = 0, *Hi = 0;
+  SDNode *Mul = CurDAG->getMachineNode(Opc, DL, MVT::Glue, N->getOperand(0),
+                                       N->getOperand(1));
+  SDValue InFlag = SDValue(Mul, 0);
+
+  if (HasLo) {
+    Lo = CurDAG->getMachineNode(Cpu0::MFLO, DL,
+                                Ty, MVT::Glue, InFlag);
+    InFlag = SDValue(Lo, 1);
+  }
+  if (HasHi)
+    Hi = CurDAG->getMachineNode(Cpu0::MFHI, DL,
+                                Ty, InFlag);
+
+  return std::make_pair(Lo, Hi);
+} // lbd document - mark - SelectMULT
+
 /// Select instructions not customized! Used for
 /// expanded, promoted and normal instructions
 SDNode* Cpu0DAGToDAGISel::Select(SDNode *Node) {
   unsigned Opcode = Node->getOpcode();
+  SDLoc DL(Node);
 
   // Dump information about the Node being selected
   DEBUG(errs() << "Selecting: "; Node->dump(CurDAG); errs() << "\n");
@@ -153,9 +178,17 @@ SDNode* Cpu0DAGToDAGISel::Select(SDNode *Node) {
   // Instruction Selection not handled by the auto-generated
   // tablegen selection should be handled here.
   ///
+  EVT NodeTy = Node->getValueType(0);
+  unsigned MultOpc;
 
   switch(Opcode) {
   default: break;
+
+  case ISD::MULHS:
+  case ISD::MULHU: {
+    MultOpc = (Opcode == ISD::MULHU ? Cpu0::MULTu : Cpu0::MULT);
+    return SelectMULT(Node, MultOpc, DL, NodeTy, false, true).second;
+  }
 
   case ISD::Constant: {
     const ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Node);

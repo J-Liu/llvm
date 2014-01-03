@@ -22,10 +22,19 @@ include "Cpu0InstrFormats.td"
 //===----------------------------------------------------------------------===//
 
 def SDT_Cpu0Ret          : SDTypeProfile<0, 1, [SDTCisInt<0>]>;
+def SDT_Cpu0DivRem       : SDTypeProfile<0, 2,
+                                         [SDTCisInt<0>,
+                                          SDTCisSameAs<0, 1>]>;
 
 // Return
 def Cpu0Ret : SDNode<"Cpu0ISD::Ret", SDTNone,
                      [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
+
+// DivRem(u) nodes
+def Cpu0DivRem    : SDNode<"Cpu0ISD::DivRem", SDT_Cpu0DivRem,
+                           [SDNPOutGlue]>;
+def Cpu0DivRemU   : SDNode<"Cpu0ISD::DivRemU", SDT_Cpu0DivRem,
+                           [SDNPOutGlue]>;
 
 //===----------------------------------------------------------------------===//
 // Cpu0 Operand, Complex Patterns and Transformations Definitions.
@@ -148,6 +157,14 @@ class shift_rotate_imm32<bits<8> op, bits<4> isRotate, string instr_asm,
                          SDNode OpNode>:
   shift_rotate_imm<op, isRotate, instr_asm, OpNode, immZExt5, shamt, CPURegs>;
 
+class shift_rotate_reg<bits<8> op, bits<4> isRotate, string instr_asm,
+                       SDNode OpNode, RegisterClass RC>:
+  FA<op, (outs RC:$ra), (ins CPURegs:$rb, RC:$rc),
+     !strconcat(instr_asm, "\t$ra, $rb, $rc"),
+     [(set RC:$ra, (OpNode RC:$rb, CPURegs:$rc))], IIAlu> {
+  let shamt = 0;
+}
+
 // Load Upper Imediate
 class LoadUpper<bits<8> op, string instr_asm, RegisterClass RC, Operand Imm>:
   FL<op, (outs RC:$ra), (ins Imm:$imm16),
@@ -212,6 +229,53 @@ class RetBase<RegisterClass RC>: JumpFR<0x3c, "ret", RC> {
   let hasExtraSrcRegAllocReq = 1;
 }
 
+// Mul, Div
+class Mult<bits<8> op, string instr_asm, InstrItinClass itin,
+           RegisterClass RC, list<Register> DefRegs>:
+  FL<op, (outs), (ins RC:$ra, RC:$rb),
+     !strconcat(instr_asm, "\t$ra, $rb"), [], itin> {
+  let imm16 = 0;
+  let isCommutable = 1;
+  let Defs = DefRegs;
+  let neverHasSideEffects = 1;
+}
+
+class Mult32<bits<8> op, string instr_asm, InstrItinClass itin>:
+  Mult<op, instr_asm, itin, CPURegs, [HI, LO]>;
+
+class Div<SDNode opNode, bits<8> op, string instr_asm, InstrItinClass itin,
+          RegisterClass RC, list<Register> DefRegs>:
+  FL<op, (outs), (ins RC:$ra, RC:$rb),
+     !strconcat(instr_asm, "\t$ra, $rb"),
+     [(opNode RC:$ra, RC:$rb)], itin> {
+  let imm16 = 0;
+  let Defs = DefRegs;
+}
+
+class Div32<SDNode opNode, bits<8> op, string instr_asm, InstrItinClass itin>:
+  Div<opNode, op, instr_asm, itin, CPURegs, [HI, LO]>;
+
+// Move from Hi/Lo
+class MoveFromLOHI<bits<8> op, string instr_asm, RegisterClass RC,
+                   list<Register> UseRegs>:
+  FL<op, (outs RC:$ra), (ins),
+     !strconcat(instr_asm, "\t$ra"), [], IIHiLo> {
+  let rb = 0;
+  let imm16 = 0;
+  let Uses = UseRegs;
+  let neverHasSideEffects = 1;
+}
+
+class MoveToLOHI<bits<8> op, string instr_asm, RegisterClass RC,
+                 list<Register> DefRegs>:
+  FL<op, (outs), (ins RC:$ra),
+     !strconcat(instr_asm, "\t$ra"), [], IIHiLo> {
+  let rb = 0;
+  let imm16 = 0;
+  let Defs = DefRegs;
+  let neverHasSideEffects = 1;
+}
+
 //===----------------------------------------------------------------------===//
 // Instruction definition
 //===----------------------------------------------------------------------===//
@@ -233,13 +297,42 @@ def LUi     : LoadUpper<0x0f, "lui", CPURegs, uimm16>;
 
 /// Arithmetic Instructions (3-Operand, R-Type)
 def ADDu    : ArithLogicR<0x11, "addu", add, IIAlu, CPURegs, 1>;
+def SUBu    : ArithLogicR<0x12, "subu", sub, IIAlu, CPURegs>;
+def ADD     : ArithLogicR<0x13, "add", add, IIAlu, CPURegs, 1>;
+def SUB     : ArithLogicR<0x14, "sub", sub, IIAlu, CPURegs, 1>;
+def MUL     : ArithLogicR<0x17, "mul", mul, IIImul, CPURegs, 1>;
 
 /// Shift Instructions
+// sra is IR node for ashr llvm IR instruction of .bc
+def ROL     : shift_rotate_imm32<0x1b, 0x01, "rol", rotl>;
+def ROR     : shift_rotate_imm32<0x1c, 0x01, "ror", rotr>;
+def SRA     : shift_rotate_imm32<0x1d, 0x00, "sra", sra>;
 def SHL     : shift_rotate_imm32<0x1e, 0x00, "shl", shl>;
+// srl is IR node for lshr llvm IR instruction of .bc
+def SHR     : shift_rotate_imm32<0x1f, 0x00, "shr", srl>;
+def SRAV    : shift_rotate_reg<0x20, 0x00, "srav", sra, CPURegs>;
+def SHLV    : shift_rotate_reg<0x21, 0x00, "shlv", shl, CPURegs>;
+def SHRV    : shift_rotate_reg<0x22, 0x00, "shrv", srl, CPURegs>;
+
 let isReturn=1, isTerminator=1, hasDelaySlot=1, isBarrier=1, hasCtrlDep=1 in
   def RetLR : Cpu0Pseudo<(outs), (ins), "", [(Cpu0Ret)]>;
 
 def RET     : RetBase<CPURegs>;
+
+/// Multiply and Divide Instructions.
+def MULT    : Mult32<0x41, "mult", IIImul>;
+def MULTu   : Mult32<0x42, "multu", IIImul>;
+def SDIV    : Div32<Cpu0DivRem, 0x43, "div", IIIdiv>;
+def UDIV    : Div32<Cpu0DivRemU, 0x44, "divu", IIIdiv>;
+
+def MFHI    : MoveFromLOHI<0x46, "mfhi", CPURegs, [HI]>;
+def MFLO    : MoveFromLOHI<0x47, "mflo", CPURegs, [LO]>;
+def MTHI    : MoveToLOHI<0x48, "mthi", CPURegs, [HI]>;
+def MTLO    : MoveToLOHI<0x49, "mtlo", CPURegs, [LO]>;
+
+/// No operation
+let addr=0 in
+  def NOP   : FJ<0, (outs), (ins), "nop", [], IIAlu>;
 
 //===----------------------------------------------------------------------===//
 //  Arbitrary patterns that map to one or more instructions
