@@ -71,6 +71,12 @@ def mem : Operand<i32> {
   let EncoderMethod = "getMemEncoding";
 }
 
+def mem_ea : Operand<i32> {
+  let PrintMethod = "printMemOperandEA";
+  let MIOperandInfo = (ops CPURegs, simm16);
+  let EncoderMethod = "getMemEncoding";
+}
+
 // Transformation Function - get the lower 16 bits.
 def LO16 : SDNodeXForm<imm, [{
   return getImm(N, N->getZExtValue() & 0xffff);
@@ -126,7 +132,11 @@ class AlignedStore<PatFrag Node> :
 }]>;
 
 // Load/Store PatFrags.
+def sextloadi16_a   : AlignedLoad<sextloadi16>;
+def zextloadi16_a   : AlignedLoad<zextloadi16>;
+def extloadi16_a    : AlignedLoad<extloadi16>;
 def load_a          : AlignedLoad<load>;
+def truncstorei16_a : AlignedStore<truncstorei16>;
 def store_a         : AlignedStore<store>;
 
 //===----------------------------------------------------------------------===//
@@ -320,6 +330,10 @@ class MoveToSW<bits<8> op, string instr_asm, RegisterClass RC,
   let neverHasSideEffects = 1;
 }
 
+class EffectiveAddress<string instr_asm, RegisterClass RC, Operand Mem> :
+  FMem<0x09, (outs RC:$ra), (ins Mem:$addr),
+     instr_asm, [(set RC:$ra, addr:$addr)], IIAlu>;
+
 //===----------------------------------------------------------------------===//
 // Instruction definition
 //===----------------------------------------------------------------------===//
@@ -332,6 +346,11 @@ class MoveToSW<bits<8> op, string instr_asm, RegisterClass RC,
 ///  aligned
 defm LD     : LoadM32<0x01,  "ld",  load_a>;
 defm ST     : StoreM32<0x02, "st",  store_a>;
+defm LBu    : LoadM32<0x04, "lbu", zextloadi8>;
+defm SB     : StoreM32<0x05, "sb", truncstorei8>;
+defm LH     : LoadM32<0x06, "lh",  sextloadi16_a>;
+defm LHu    : LoadM32<0x07, "lhu", zextloadi16_a>;
+defm SH     : StoreM32<0x08, "sh", truncstorei16_a>;
 
 /// Arithmetic Instructions (ALU Immediate)
 // IR "add" defined in include/llvm/Target/TargetSelectionDAG.td, line 315 (def add).
@@ -386,6 +405,14 @@ def MTSW    : MoveToSW<0x51, "mtsw", CPURegs, [SW]>;
 let addr=0 in
   def NOP   : FJ<0, (outs), (ins), "nop", [], IIAlu>;
 
+// FrameIndexes are legalized when they are operands from load/store
+// instructions. The same not happens for stack address copies, so an
+// add op with mem ComplexPattern is used and the stack address copy
+// can be matched. It's similar to Sparc LEA_ADDRi
+def LEA_ADDiu : EffectiveAddress<"addiu\t$ra, $addr", CPURegs, mem_ea> {
+  let isCodeGenOnly = 1;
+} // lbd document - mark - def LEA_ADDiu
+
 //===----------------------------------------------------------------------===//
 //  Arbitrary patterns that map to one or more instructions
 //===----------------------------------------------------------------------===//
@@ -401,6 +428,14 @@ def : Pat<(i32 immLow16Zero:$in),
 // Arbitrary immediates
 def : Pat<(i32 imm:$imm),
           (ORi (LUi (HI16 imm:$imm)), (LO16 imm:$imm))>;
+
+// Carry patterns
+def : Pat<(subc CPURegs:$lhs, CPURegs:$rhs),
+          (SUBu CPURegs:$lhs, CPURegs:$rhs)>;
+def : Pat<(addc CPURegs:$lhs, CPURegs:$rhs),
+          (ADDu CPURegs:$lhs, CPURegs:$rhs)>;
+def : Pat<(addc  CPURegs:$src, immSExt16:$imm),
+          (ADDiu CPURegs:$src, imm:$imm)>;
 
 // hi/lo relocs
 def : Pat<(Cpu0Hi tglobaladdr:$in), (SHL (ADDiu ZERO, tglobaladdr:$in), 16)>;

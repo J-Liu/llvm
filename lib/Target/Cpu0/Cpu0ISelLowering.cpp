@@ -122,6 +122,16 @@ Cpu0TargetLowering(Cpu0TargetMachine &TM)
   // Set up the register classes
   addRegisterClass(MVT::i32, &Cpu0::CPURegsRegClass);
 
+  // Cpu0 does not have i1 type, so use i32 for
+  // setcc operations results (slt, sgt, ...).
+  setBooleanContents(ZeroOrOneBooleanContent);
+  setBooleanVectorContents(ZeroOrNegativeOneBooleanContent);
+
+  // Load extented operations for i1 types must be promoted
+  setLoadExtAction(ISD::EXTLOAD,  MVT::i1,  Promote);
+  setLoadExtAction(ISD::ZEXTLOAD, MVT::i1,  Promote);
+  setLoadExtAction(ISD::SEXTLOAD, MVT::i1,  Promote);
+
   // Cpu0 Custom Operations
   setOperationAction(ISD::GlobalAddress,      MVT::i32,   Custom);
 
@@ -280,4 +290,10 @@ LowerReturn(SDValue Chain,
             SDLoc DL, SelectionDAG &DAG) const {
   return DAG.getNode(Cpu0ISD::Ret, DL, MVT::Other,
                      Chain, DAG.getRegister(Cpu0::LR, MVT::i32));
+}
+
+bool // lbd document - mark - isOffsetFoldingLegal
+Cpu0TargetLowering::isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const {
+  // The Cpu0 target isn't yet aware of offsets.
+  return false;
 }
