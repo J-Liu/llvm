@@ -132,6 +132,16 @@ class ArithLogicR<bits<8> op, string instr_asm, SDNode OpNode,
   let isReMaterializable = 1;
 }
 
+class CmpInstr<bits<8> op, string instr_asm,
+               InstrItinClass itin, RegisterClass RC, RegisterClass RD,
+               bit isComm = 0>:
+  FA<op, (outs RD:$rc), (ins RC:$ra, RC:$rb),
+     !strconcat(instr_asm, "\t$rc, $ra, $rb"), [], itin> {
+  let rc = 0;
+  let shamt = 0;
+  let isCommutable = isComm;
+} // lbd document - mark - class CmpInstr
+
 // Arithmetic and logical instructions with 2 register operands.
 class ArithLogicI<bits<8> op, string instr_asm, SDNode OpNode,
                   Operand Od, PatLeaf imm_type, RegisterClass RC> :
@@ -276,6 +286,28 @@ class MoveToLOHI<bits<8> op, string instr_asm, RegisterClass RC,
   let neverHasSideEffects = 1;
 }
 
+// Move from SW
+class MoveFromSW<bits<8> op, string instr_asm, RegisterClass RC,
+                   list<Register> UseRegs>:
+  FL<op, (outs RC:$ra), (ins),
+     !strconcat(instr_asm, "\t$ra"), [], IIAlu> {
+  let rb = 0;
+  let imm16 = 0;
+  let Uses = UseRegs;
+  let neverHasSideEffects = 1;
+}
+
+// Move to SW
+class MoveToSW<bits<8> op, string instr_asm, RegisterClass RC,
+                 list<Register> DefRegs>:
+  FL<op, (outs), (ins RC:$ra),
+     !strconcat(instr_asm, "\t$ra"), [], IIAlu> {
+  let rb = 0;
+  let imm16 = 0;
+  let Defs = DefRegs;
+  let neverHasSideEffects = 1;
+}
+
 //===----------------------------------------------------------------------===//
 // Instruction definition
 //===----------------------------------------------------------------------===//
@@ -292,15 +324,21 @@ defm ST     : StoreM32<0x02, "st",  store_a>;
 /// Arithmetic Instructions (ALU Immediate)
 // IR "add" defined in include/llvm/Target/TargetSelectionDAG.td, line 315 (def add).
 def ADDiu   : ArithLogicI<0x09, "addiu", add, simm16, immSExt16, CPURegs>;
+def ANDi    : ArithLogicI<0x0c, "andi", and, uimm16, immZExt16, CPURegs>;
 def ORi     : ArithLogicI<0x0d, "ori", or, uimm16, immZExt16, CPURegs>;
+def XORi    : ArithLogicI<0x0e, "xori", xor, uimm16, immZExt16, CPURegs>;
 def LUi     : LoadUpper<0x0f, "lui", CPURegs, uimm16>;
 
 /// Arithmetic Instructions (3-Operand, R-Type)
+def CMP     : CmpInstr<0x10, "cmp", IIAlu, CPURegs, SR, 0>;
 def ADDu    : ArithLogicR<0x11, "addu", add, IIAlu, CPURegs, 1>;
 def SUBu    : ArithLogicR<0x12, "subu", sub, IIAlu, CPURegs>;
 def ADD     : ArithLogicR<0x13, "add", add, IIAlu, CPURegs, 1>;
 def SUB     : ArithLogicR<0x14, "sub", sub, IIAlu, CPURegs, 1>;
 def MUL     : ArithLogicR<0x17, "mul", mul, IIImul, CPURegs, 1>;
+def AND     : ArithLogicR<0x18, "and", and, IIAlu, CPURegs, 1>;
+def OR      : ArithLogicR<0x19, "or", or, IIAlu, CPURegs, 1>;
+def XOR     : ArithLogicR<0x1a, "xor", xor, IIAlu, CPURegs, 1>;
 
 /// Shift Instructions
 // sra is IR node for ashr llvm IR instruction of .bc
@@ -329,6 +367,8 @@ def MFHI    : MoveFromLOHI<0x46, "mfhi", CPURegs, [HI]>;
 def MFLO    : MoveFromLOHI<0x47, "mflo", CPURegs, [LO]>;
 def MTHI    : MoveToLOHI<0x48, "mthi", CPURegs, [HI]>;
 def MTLO    : MoveToLOHI<0x49, "mtlo", CPURegs, [LO]>;
+def MFSW    : MoveFromSW<0x50, "mfsw", CPURegs, [SW]>;
+def MTSW    : MoveToSW<0x51, "mtsw", CPURegs, [SW]>;
 
 /// No operation
 let addr=0 in
@@ -349,3 +389,61 @@ def : Pat<(i32 immLow16Zero:$in),
 // Arbitrary immediates
 def : Pat<(i32 imm:$imm),
           (ORi (LUi (HI16 imm:$imm)), (LO16 imm:$imm))>;
+
+def : Pat<(not CPURegs:$in),
+// 1: in == 0; 0: in != 0
+          (XORi CPURegs:$in, 1)>;
+
+// setcc patterns
+multiclass SeteqPatsCmp<RegisterClass RC> {
+// a == b
+  def : Pat<(seteq RC:$lhs, RC:$rhs),
+            (SHR (ANDi (CMP RC:$lhs, RC:$rhs), 2), 1)>;
+// a != b
+  def : Pat<(setne RC:$lhs, RC:$rhs),
+            (XORi (SHR (ANDi (CMP RC:$lhs, RC:$rhs), 2), 1), 1)>;
+}
+
+// a < b
+multiclass SetltPatsCmp<RegisterClass RC> {
+  def : Pat<(setlt RC:$lhs, RC:$rhs),
+            (ANDi (CMP RC:$lhs, RC:$rhs), 1)>;
+// if cpu0  `define N    `SW[31]  instead of `SW[0] // Negative flag, then need
+// 2 more instructions as follows,
+//          (XORi (ANDi (SHR (CMP RC:$lhs, RC:$rhs), (LUi 0x8000), 31), 1), 1)>;
+  def : Pat<(setult RC:$lhs, RC:$rhs),
+            (ANDi (CMP RC:$lhs, RC:$rhs), 1)>;
+}
+
+// a <= b
+multiclass SetlePatsCmp<RegisterClass RC> {
+  def : Pat<(setle RC:$lhs, RC:$rhs),
+// a <= b is equal to (XORi (b < a), 1)
+            (XORi (ANDi (CMP RC:$rhs, RC:$lhs), 1), 1)>;
+  def : Pat<(setule RC:$lhs, RC:$rhs),
+            (XORi (ANDi (CMP RC:$rhs, RC:$lhs), 1), 1)>;
+}
+
+// a > b
+multiclass SetgtPatsCmp<RegisterClass RC> {
+  def : Pat<(setgt RC:$lhs, RC:$rhs),
+// a > b is equal to b < a is equal to setlt(b, a)
+            (ANDi (CMP RC:$rhs, RC:$lhs), 1)>;
+  def : Pat<(setugt RC:$lhs, RC:$rhs),
+            (ANDi (CMP RC:$rhs, RC:$lhs), 1)>;
+}
+
+// a >= b
+multiclass SetgePatsCmp<RegisterClass RC> {
+  def : Pat<(setge RC:$lhs, RC:$rhs),
+// a >= b is equal to b <= a
+            (XORi (ANDi (CMP RC:$lhs, RC:$rhs), 1), 1)>;
+  def : Pat<(setuge RC:$lhs, RC:$rhs),
+            (XORi (ANDi (CMP RC:$lhs, RC:$rhs), 1), 1)>;
+}
+
+defm : SeteqPatsCmp<CPURegs>;
+defm : SetltPatsCmp<CPURegs>;
+defm : SetlePatsCmp<CPURegs>;
+defm : SetgtPatsCmp<CPURegs>;
+defm : SetgePatsCmp<CPURegs>;
