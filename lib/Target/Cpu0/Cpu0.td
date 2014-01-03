@@ -22,6 +22,7 @@ include "llvm/Target/Target.td"
 include "Cpu0RegisterInfo.td"
 include "Cpu0Schedule.td"
 include "Cpu0InstrInfo.td"
+include "Cpu0CallingConv.td"
 
 def Cpu0InstrInfo : InstrInfo;
 
