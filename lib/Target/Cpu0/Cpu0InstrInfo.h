@@ -35,6 +35,12 @@ public:
   /// always be able to get register info as well (through this method).
   ///
   virtual const Cpu0RegisterInfo &getRegisterInfo() const;
+
+  virtual MachineInstr* emitFrameIndexDebugValue(MachineFunction &MF,
+                                                 int FrameIx, uint64_t Offset,
+                                                 const MDNode *MDPtr,
+                                                 DebugLoc DL) const;
+  // lbd document - mark - emitFrameIndexDebugValue
 };
 }
 
