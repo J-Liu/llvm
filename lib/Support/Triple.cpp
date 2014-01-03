@@ -21,6 +21,8 @@ const char *Triple::getArchTypeName(ArchType Kind) {
 
   case aarch64: return "aarch64";
   case arm:     return "arm";
+  case cpu0:    return "cpu0";
+  case cpu0el:  return "cpu0el";
   case hexagon: return "hexagon";
   case mips:    return "mips";
   case mipsel:  return "mipsel";
@@ -59,6 +61,9 @@ const char *Triple::getArchTypePrefix(ArchType Kind) {
 
   case arm:
   case thumb:   return "arm";
+
+  case cpu0:
+  case cpu0el:  return "cpu0";
 
   case ppc64:
   case ppc64le:
@@ -163,6 +168,8 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
   return StringSwitch<Triple::ArchType>(Name)
     .Case("aarch64", aarch64)
     .Case("arm", arm)
+    .Case("cpu0", cpu0)
+    .Case("cpu0el", cpu0el)
     .Case("mips", mips)
     .Case("mipsel", mipsel)
     .Case("mips64", mips64)
@@ -233,6 +240,8 @@ static Triple::ArchType parseArch(StringRef ArchName) {
     .StartsWith("armv", Triple::arm)
     .Case("thumb", Triple::thumb)
     .StartsWith("thumbv", Triple::thumb)
+    .Cases("cpu0", "cpu0eb", Triple::cpu0)
+    .Case("cpu0el", Triple::cpu0el)
     .Case("msp430", Triple::msp430)
     .Cases("mips", "mipseb", "mipsallegrex", Triple::mips)
     .Cases("mipsel", "mipsallegrexel", Triple::mipsel)
@@ -677,6 +686,8 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
 
   case llvm::Triple::amdil:
   case llvm::Triple::arm:
+  case llvm::Triple::cpu0:
+  case llvm::Triple::cpu0el:
   case llvm::Triple::hexagon:
   case llvm::Triple::le32:
   case llvm::Triple::mips:
@@ -733,6 +744,8 @@ Triple Triple::get32BitArchVariant() const {
   case Triple::amdil:
   case Triple::spir:
   case Triple::arm:
+  case Triple::cpu0:
+  case Triple::cpu0el:
   case Triple::hexagon:
   case Triple::le32:
   case Triple::mips:
@@ -765,6 +778,8 @@ Triple Triple::get64BitArchVariant() const {
   case Triple::UnknownArch:
   case Triple::amdil:
   case Triple::arm:
+  case Triple::cpu0:
+  case Triple::cpu0el:
   case Triple::hexagon:
   case Triple::le32:
   case Triple::msp430:

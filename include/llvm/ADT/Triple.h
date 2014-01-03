@@ -48,6 +48,8 @@ public:
 
     arm,     // ARM: arm, armv.*, xscale
     aarch64, // AArch64: aarch64
+    cpu0,    // Cpu0: cpu0
+    cpu0el,  // Cpu0: cpu0el
     hexagon, // Hexagon: hexagon
     mips,    // MIPS: mips, mipsallegrex
     mipsel,  // MIPSEL: mipsel, mipsallegrexel

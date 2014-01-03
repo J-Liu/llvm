@@ -299,6 +299,11 @@ TEST(TripleTest, BitWidthPredicates) {
   EXPECT_TRUE(T.isArch32Bit());
   EXPECT_FALSE(T.isArch64Bit());
 
+  T.setArch(Triple::cpu0);
+  EXPECT_FALSE(T.isArch16Bit());
+  EXPECT_TRUE(T.isArch32Bit());
+  EXPECT_FALSE(T.isArch64Bit());
+
   T.setArch(Triple::hexagon);
   EXPECT_FALSE(T.isArch16Bit());
   EXPECT_TRUE(T.isArch32Bit());
