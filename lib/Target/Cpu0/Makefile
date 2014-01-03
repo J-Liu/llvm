@@ -20,8 +20,9 @@ BUILT_SOURCES = Cpu0GenRegisterInfo.inc \
                 Cpu0GenAsmWriter.inc \
                 Cpu0GenDAGISel.inc \
                 Cpu0GenCallingConv.inc \
-                Cpu0GenSubtargetInfo.inc
+                Cpu0GenSubtargetInfo.inc \
+                Cpu0GenAsmMatcher.inc
 
-DIRS = Disassembler InstPrinter TargetInfo MCTargetDesc
+DIRS = AsmParser Disassembler InstPrinter TargetInfo MCTargetDesc
 
 include $(LEVEL)/Makefile.common

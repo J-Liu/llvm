@@ -99,11 +99,17 @@ def uimm16      : Operand<i32> {
   let PrintMethod = "printUnsignedImm";
 }
 
+def Cpu0MemAsmOperand : AsmOperandClass {
+  let Name = "Mem";
+  let ParserMethod = "parseMemOperand";
+} // lbd document - mark - def Cpu0MemAsmOperand
+
 // Address operand
 def mem : Operand<i32> {
   let PrintMethod = "printMemOperand";
   let MIOperandInfo = (ops CPURegs, simm16);
   let EncoderMethod = "getMemEncoding";
+  let ParserMatchClass = Cpu0MemAsmOperand;
 }
 
 def mem_ea : Operand<i32> {
@@ -436,6 +442,25 @@ def CPRESTORE : Cpu0Pseudo<(outs), (ins i32imm:$loc, CPURegs:$gp),
 //===----------------------------------------------------------------------===//
 // Instruction definition
 //===----------------------------------------------------------------------===//
+
+//===----------------------------------------------------------------------===//
+// Pseudo Instruction definition
+//===----------------------------------------------------------------------===//
+
+class LoadImm32< string instr_asm, Operand Od, RegisterClass RC> :
+  Cpu0AsmPseudoInst<(outs RC:$ra), (ins Od:$imm32),
+                     !strconcat(instr_asm, "\t$ra, $imm32")> ;
+def LoadImm32Reg : LoadImm32<"li", shamt, CPURegs>;
+
+class LoadAddress<string instr_asm, Operand MemOpnd, RegisterClass RC> :
+  Cpu0AsmPseudoInst<(outs RC:$ra), (ins MemOpnd:$addr),
+                     !strconcat(instr_asm, "\t$ra, $addr")> ;
+def LoadAddr32Reg : LoadAddress<"la", mem, CPURegs>;
+
+class LoadAddressImm<string instr_asm, Operand Od, RegisterClass RC> :
+  Cpu0AsmPseudoInst<(outs RC:$ra), (ins Od:$imm32),
+                     !strconcat(instr_asm, "\t$ra, $imm32")> ;
+def LoadAddr32Imm : LoadAddressImm<"la", shamt, CPURegs>;
 
 //===----------------------------------------------------------------------===//
 // Cpu0 Instructions
