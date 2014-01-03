@@ -133,6 +133,10 @@ void Cpu0FrameLowering::emitPrologue(MachineFunction &MF) const {
   DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
   unsigned SP = Cpu0::SP;
  // lbd document - mark - Cpu0::SP
+  unsigned FP = Cpu0::FP;
+  unsigned ZERO = Cpu0::ZERO;
+  unsigned ADDu = Cpu0::ADDu;
+ // lbd document - mark - Cpu0::ADDu
   unsigned ADDiu = Cpu0::ADDiu;
   // First, compute final stack size.
   unsigned StackAlign = getStackAlignment();
@@ -195,6 +199,19 @@ void Cpu0FrameLowering::emitPrologue(MachineFunction &MF) const {
     }
   }
 
+  // if framepointer enabled, set it to point to the stack pointer.
+  if (hasFP(MF)) {
+    // Insert instruction "move $fp, $sp" at this location.
+    BuildMI(MBB, MBBI, dl, TII.get(ADDu), FP).addReg(SP).addReg(ZERO);
+
+    // emit ".cfi_def_cfa_register $fp"
+    MCSymbol *SetFPLabel = MMI.getContext().CreateTempSymbol();
+    BuildMI(MBB, MBBI, dl,
+            TII.get(TargetOpcode::PROLOG_LABEL)).addSym(SetFPLabel);
+    MMI.addFrameInst(MCCFIInstruction::createDefCfaRegister(
+        SetFPLabel, MRI->getDwarfRegNum(FP, true)));
+  }
+
   // Restore GP from the saved stack location
   if (Cpu0FI->needGPSaveRestore()) {
     unsigned Offset = MFI->getObjectOffset(Cpu0FI->getGPFI());
@@ -213,7 +230,23 @@ void Cpu0FrameLowering::emitEpilogue(MachineFunction &MF,
   DebugLoc dl = MBBI->getDebugLoc();
   unsigned SP = Cpu0::SP;
  // lbd document - mark - emitEpilogue() Cpu0::SP
+  unsigned FP = Cpu0::FP;
+  unsigned ZERO = Cpu0::ZERO;
+  unsigned ADDu = Cpu0::ADDu;
+ // lbd document - mark - emitEpilogue() Cpu0::ADDu
   unsigned ADDiu = Cpu0::ADDiu;
+
+  // if framepointer enabled, restore the stack pointer.
+  if (hasFP(MF)) {
+    // Find the first instruction that restores a callee-saved register.
+    MachineBasicBlock::iterator I = MBBI;
+
+    for (unsigned i = 0; i < MFI->getCalleeSavedInfo().size(); ++i)
+      --I;
+
+    // Insert instruction "move $sp, $fp" at this location.
+    BuildMI(MBB, I, dl, TII.get(ADDu), SP).addReg(FP).addReg(ZERO);
+  } // lbd document - mark - emitEpilogue() if (hasFP(MF))
 
   // Get the number of bytes from FrameInfo
   uint64_t StackSize = MFI->getStackSize();
@@ -228,6 +261,37 @@ void Cpu0FrameLowering::emitEpilogue(MachineFunction &MF,
     Cpu0FI->setEmitNOAT();
     expandLargeImm(SP, StackSize, TII, MBB, MBBI, dl);
   }
+}
+
+bool Cpu0FrameLowering::
+spillCalleeSavedRegisters(MachineBasicBlock &MBB,
+                          MachineBasicBlock::iterator MI,
+                          const std::vector<CalleeSavedInfo> &CSI,
+                          const TargetRegisterInfo *TRI) const {
+  MachineFunction *MF = MBB.getParent();
+  MachineBasicBlock *EntryBlock = MF->begin();
+  const TargetInstrInfo &TII = *MF->getTarget().getInstrInfo();
+
+  for (unsigned i = 0, e = CSI.size(); i != e; ++i) {
+    // Add the callee-saved register as live-in. Do not add if the register is
+    // RA and return address is taken, because it has already been added in
+    // method Cpu0TargetLowering::LowerRETURNADDR.
+    // It's killed at the spill, unless the register is RA and return address
+    // is taken.
+    unsigned Reg = CSI[i].getReg();
+    bool IsRAAndRetAddrIsTaken = (Reg == Cpu0::LR)
+        && MF->getFrameInfo()->isReturnAddressTaken();
+    if (!IsRAAndRetAddrIsTaken)
+      EntryBlock->addLiveIn(Reg);
+
+    // Insert the spill to the stack frame.
+    bool IsKill = !IsRAAndRetAddrIsTaken;
+    const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
+    TII.storeRegToStackSlot(*EntryBlock, MI, Reg, IsKill,
+                            CSI[i].getFrameIdx(), RC, TRI);
+  }
+
+  return true;
 }
 
 // This function eliminate ADJCALLSTACKDOWN,
@@ -265,6 +329,12 @@ void Cpu0FrameLowering::
 processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                      RegScavenger *RS) const {
   MachineRegisterInfo& MRI = MF.getRegInfo();
+  Cpu0FunctionInfo *Cpu0FI = MF.getInfo<Cpu0FunctionInfo>();
+  unsigned FP = Cpu0::FP;
+
+  // Mark $fp as used if function has dedicated frame pointer.
+  if (hasFP(MF))
+    MRI.setPhysRegUsed(FP);
 
   // FIXME: remove this code if register allocator can correctly mark
   //        $fp and $ra used or unused.

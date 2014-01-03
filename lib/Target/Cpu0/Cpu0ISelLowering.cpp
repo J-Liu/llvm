@@ -141,6 +141,7 @@ Cpu0TargetLowering(Cpu0TargetMachine &TM)
   // Cpu0 Custom Operations
   setOperationAction(ISD::GlobalAddress,      MVT::i32,   Custom);
   setOperationAction(ISD::BRCOND,             MVT::Other, Custom);
+  setOperationAction(ISD::VASTART,            MVT::Other, Custom);
 
   // Cpu0 doesn't have sext_inreg, replace them with shl/sra.
   setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i1 , Expand);
@@ -152,6 +153,13 @@ Cpu0TargetLowering(Cpu0TargetMachine &TM)
 
   // Operations not directly supported by Cpu0.
   setOperationAction(ISD::BR_CC,             MVT::i32, Expand);
+  setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32,  Expand);
+
+  // Support va_arg(): variable numbers (not fixed numbers) of arguments
+  //  (parameters) for function all
+  setOperationAction(ISD::VAARG,             MVT::Other, Expand);
+  setOperationAction(ISD::VACOPY,            MVT::Other, Expand);
+  setOperationAction(ISD::VAEND,             MVT::Other, Expand);
 
   setTargetDAGCombine(ISD::SDIVREM);
   setTargetDAGCombine(ISD::UDIVREM);
@@ -159,6 +167,8 @@ Cpu0TargetLowering(Cpu0TargetMachine &TM)
 //- Set .align 2
 // It will emit .align 2 later
   setMinFunctionAlignment(2);
+
+  setStackPointerRegisterToSaveRestore(Cpu0::SP);
 
 // must, computeRegisterProperties - Once all of the register classes are 
 //  added, this allows us to compute derived properties we expose.
@@ -224,6 +234,7 @@ LowerOperation(SDValue Op, SelectionDAG &DAG) const
   {
     case ISD::BRCOND:             return LowerBRCOND(Op, DAG);
     case ISD::GlobalAddress:      return LowerGlobalAddress(Op, DAG);
+    case ISD::VASTART:            return LowerVASTART(Op, DAG);
   }
   return SDValue();
 }
@@ -231,6 +242,18 @@ LowerOperation(SDValue Op, SelectionDAG &DAG) const
 //===----------------------------------------------------------------------===//
 //  Lower helper functions
 //===----------------------------------------------------------------------===//
+
+// AddLiveIn - This helper function adds the specified physical register to the
+// MachineFunction as a live in value.  It also creates a corresponding
+// virtual register for it.
+static unsigned
+AddLiveIn(MachineFunction &MF, unsigned PReg, const TargetRegisterClass *RC)
+{
+  assert(RC->contains(PReg) && "Not the correct regclass!");
+  unsigned VReg = MF.getRegInfo().createVirtualRegister(RC);
+  MF.getRegInfo().addLiveIn(PReg, VReg);
+  return VReg;
+}
 
 //===----------------------------------------------------------------------===//
 //  Misc Lower Operation implementation
@@ -281,7 +304,61 @@ SDValue Cpu0TargetLowering::LowerGlobalAddress(SDValue Op,
                                  Cpu0II::MO_GOT_LO16);
 }
 
+SDValue Cpu0TargetLowering::LowerVASTART(SDValue Op, SelectionDAG &DAG) const {
+  MachineFunction &MF = DAG.getMachineFunction();
+  Cpu0FunctionInfo *FuncInfo = MF.getInfo<Cpu0FunctionInfo>();
+
+  SDLoc DL = SDLoc(Op);
+  SDValue FI = DAG.getFrameIndex(FuncInfo->getVarArgsFrameIndex(),
+                                 getPointerTy());
+
+  // vastart just stores the address of the VarArgsFrameIndex slot into the
+  // memory location argument.
+  const Value *SV = cast<SrcValueSDNode>(Op.getOperand(2))->getValue();
+  return DAG.getStore(Op.getOperand(0), DL, FI, Op.getOperand(1),
+                      MachinePointerInfo(SV), false, false, 0);
+}
+
 #include "Cpu0GenCallingConv.inc"
+
+//===----------------------------------------------------------------------===//
+//                  Call Calling Convention Implementation
+//===----------------------------------------------------------------------===//
+
+static const unsigned IntRegsSize = 2;
+
+static const uint16_t IntRegs[] = {
+  Cpu0::A0, Cpu0::A1
+};
+
+// Write ByVal Arg to arg registers and stack.
+static void
+WriteByValArg(SDValue& ByValChain, SDValue Chain, SDLoc DL,
+              SmallVector<std::pair<unsigned, SDValue>, 16>& RegsToPass,
+              SmallVector<SDValue, 8>& MemOpChains, int& LastFI,
+              MachineFrameInfo *MFI, SelectionDAG &DAG, SDValue Arg,
+              const CCValAssign &VA, const ISD::ArgFlagsTy& Flags,
+              MVT PtrType, bool isLittle) {
+  unsigned LocMemOffset = VA.getLocMemOffset();
+  unsigned Offset = 0;
+  uint32_t RemainingSize = Flags.getByValSize();
+  unsigned ByValAlign = Flags.getByValAlign();
+
+  if (RemainingSize == 0)
+    return;
+
+  // Create a fixed object on stack at offset LocMemOffset and copy
+  // remaining part of byval arg to it using memcpy.
+  SDValue Src = DAG.getNode(ISD::ADD, DL, MVT::i32, Arg,
+                            DAG.getConstant(Offset, MVT::i32));
+  LastFI = MFI->CreateFixedObject(RemainingSize, LocMemOffset, true);
+  SDValue Dst = DAG.getFrameIndex(LastFI, PtrType);
+  ByValChain = DAG.getMemcpy(ByValChain, DL, Dst, Src,
+                             DAG.getConstant(RemainingSize, MVT::i32),
+                             std::min(ByValAlign, (unsigned)4),
+                             /*isVolatile=*/false, /*AlwaysInline=*/false,
+                             MachinePointerInfo(0), MachinePointerInfo(0));
+} // lbd document - mark - WriteByValArg
 
 SDValue
 Cpu0TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
@@ -365,6 +442,9 @@ Cpu0TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
       assert("!!!Error!!!, Flags.isByVal()==true");
       assert(Flags.getByValSize() &&
              "ByVal args of size 0 should have been ignored by front-end.");
+      WriteByValArg(ByValChain, Chain, DL, RegsToPass, MemOpChains, LastFI,
+                    MFI, DAG, Arg, VA, Flags, getPointerTy(),
+                    Subtarget->isLittle());
       continue;
     }
 
@@ -542,6 +622,34 @@ Cpu0TargetLowering::LowerCallResult(SDValue Chain, SDValue InFlag,
   return Chain;
 }
 
+//===----------------------------------------------------------------------===//
+//             Formal Arguments Calling Convention Implementation
+//===----------------------------------------------------------------------===//
+static void ReadByValArg(MachineFunction &MF, SDValue Chain, SDLoc DL,
+                         std::vector<SDValue>& OutChains,
+                         SelectionDAG &DAG, unsigned NumWords, SDValue FIN,
+                         const CCValAssign &VA, const ISD::ArgFlagsTy& Flags,
+                         const Argument *FuncArg) {
+  unsigned LocMem = VA.getLocMemOffset();
+  unsigned FirstWord = LocMem / 4;
+
+  // copy register A0 - A1 to frame object
+  for (unsigned i = 0; i < NumWords; ++i) {
+    unsigned CurWord = FirstWord + i;
+    if (CurWord >= IntRegsSize)
+      break;
+
+    unsigned SrcReg = IntRegs[CurWord];
+    unsigned Reg = AddLiveIn(MF, SrcReg, &Cpu0::CPURegsRegClass);
+    SDValue StorePtr = DAG.getNode(ISD::ADD, DL, MVT::i32, FIN,
+                                   DAG.getConstant(i * 4, MVT::i32));
+    SDValue Store = DAG.getStore(Chain, DL, DAG.getRegister(Reg, MVT::i32),
+                                 StorePtr, MachinePointerInfo(FuncArg, i * 4),
+                                 false, false, 0);
+    OutChains.push_back(Store);
+  }
+} // lbd document - mark - ReadByValArg
+
 /// LowerFormalArguments - transform physical registers into virtual registers
 /// and generate load operations for arguments places on the stack.
 SDValue Cpu0TargetLowering::
@@ -579,6 +687,13 @@ LowerFormalArguments(SDValue Chain,
     if (Flags.isByVal()) {
       assert(Flags.getByValSize() &&
              "ByVal args of size 0 should have been ignored by front-end.");
+      unsigned NumWords = (Flags.getByValSize() + 3) / 4;
+      LastFI = MFI->CreateFixedObject(NumWords * 4, VA.getLocMemOffset(),
+                                      true);
+      SDValue FIN = DAG.getFrameIndex(LastFI, getPointerTy());
+      InVals.push_back(FIN);
+      ReadByValArg(MF, Chain, DL, OutChains, DAG, NumWords, FIN, VA, Flags,
+                   &*FuncArg);
       continue;
     }
     // sanity check
@@ -594,6 +709,38 @@ LowerFormalArguments(SDValue Chain,
                                  MachinePointerInfo::getFixedStack(LastFI),
                                  false, false, false, 0));
   }
+
+#if 1 // Incomming. Without this, it will use $3 instead of $2 as return
+  // register. The cpu0 ABIs for returning structs by value requires that we
+  // copy the sret argument into $v0 for the return. Save the argument into
+  // a virtual register so that we can access it from the return points.
+  if (DAG.getMachineFunction().getFunction()->hasStructRetAttr()) {
+    unsigned Reg = Cpu0FI->getSRetReturnReg();
+    if (!Reg) {
+      Reg = MF.getRegInfo().createVirtualRegister(getRegClassFor(MVT::i32));
+      Cpu0FI->setSRetReturnReg(Reg);
+    }
+    SDValue Copy = DAG.getCopyToReg(DAG.getEntryNode(), DL, Reg, InVals[0]);
+    Chain = DAG.getNode(ISD::TokenFactor, DL, MVT::Other, Copy, Chain);
+  }
+#endif
+
+  if (isVarArg) {
+    int FirstRegSlotOffset = 0; // offset of $a0's slot.
+    unsigned RegSize = Cpu0::CPURegsRegClass.getSize();
+    int RegSlotOffset = FirstRegSlotOffset + ArgLocs.size() * RegSize;
+
+    // Offset of the first variable argument from stack pointer.
+    int FirstVaArgOffset;
+
+    FirstVaArgOffset = RegSlotOffset;
+
+    // Record the frame index of the first variable argument
+    // which is a value necessary to VASTART.
+    LastFI = MFI->CreateFixedObject(RegSize, FirstVaArgOffset, true);
+    Cpu0FI->setVarArgsFrameIndex(LastFI);
+  }
+
   Cpu0FI->setLastInArgFI(LastFI);
   // All stores are grouped in one node to allow the matching between
   // the size of Ins and InVals. This only happens when on varg functions
@@ -640,6 +787,26 @@ LowerReturn(SDValue Chain,
     Flag = Chain.getValue(1);
     RetOps.push_back(DAG.getRegister(VA.getLocReg(), VA.getLocVT()));
   }
+
+#if 1 // structure return begin. Without this, it will use $3 instead of $2
+  // as return register. The cpu0 ABIs for returning structs by value requires
+  // that we copy the sret argument into $v0 for the return. We saved the
+  // argument into a virtual register in the entry block, so now we copy the
+  // value out and into $v0.
+  if (DAG.getMachineFunction().getFunction()->hasStructRetAttr()) {
+    MachineFunction &MF      = DAG.getMachineFunction();
+    Cpu0FunctionInfo *Cpu0FI = MF.getInfo<Cpu0FunctionInfo>();
+    unsigned Reg = Cpu0FI->getSRetReturnReg();
+
+    if (!Reg)
+      llvm_unreachable("sret virtual register not created in the entry block");
+    SDValue Val = DAG.getCopyFromReg(Chain, DL, Reg, getPointerTy());
+
+    Chain = DAG.getCopyToReg(Chain, DL, Cpu0::V0, Val, Flag);
+    Flag = Chain.getValue(1);
+    RetOps.push_back(DAG.getRegister(Cpu0::V0, getPointerTy()));
+  }
+#endif // structure return end
 
   RetOps[0] = Chain;  // Update chain.
 
