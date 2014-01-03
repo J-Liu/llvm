@@ -166,6 +166,31 @@ public:
     VK_ARM_TARGET2,
     VK_ARM_PREL31,
 
+    VK_Cpu0_GPREL,
+    VK_Cpu0_GOT_CALL,
+    VK_Cpu0_GOT16,
+    VK_Cpu0_GOT,
+    VK_Cpu0_ABS_HI,
+    VK_Cpu0_ABS_LO,
+    VK_Cpu0_TLSGD,
+    VK_Cpu0_TLSLDM,
+    VK_Cpu0_DTPREL_HI,
+    VK_Cpu0_DTPREL_LO,
+    VK_Cpu0_GOTTPREL,
+    VK_Cpu0_TPREL_HI,
+    VK_Cpu0_TPREL_LO,
+    VK_Cpu0_GPOFF_HI,
+    VK_Cpu0_GPOFF_LO,
+    VK_Cpu0_GOT_DISP,
+    VK_Cpu0_GOT_PAGE,
+    VK_Cpu0_GOT_OFST,
+    VK_Cpu0_HIGHER,
+    VK_Cpu0_HIGHEST,
+    VK_Cpu0_GOT_HI16,
+    VK_Cpu0_GOT_LO16,
+    VK_Cpu0_CALL_HI16,
+    VK_Cpu0_CALL_LO16,
+
     VK_PPC_LO,             // symbol@l
     VK_PPC_HI,             // symbol@h
     VK_PPC_HA,             // symbol@ha

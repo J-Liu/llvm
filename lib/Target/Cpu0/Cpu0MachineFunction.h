@@ -25,15 +25,19 @@ namespace llvm {
 class Cpu0FunctionInfo : public MachineFunctionInfo {
   MachineFunction& MF;
   unsigned MaxCallFrameSize;
+  bool EmitNOAT;
 
 public:
   Cpu0FunctionInfo(MachineFunction& MF)
   : MF(MF),
+    EmitNOAT(false),
     MaxCallFrameSize(0)
     {}
 
   unsigned getMaxCallFrameSize() const { return MaxCallFrameSize; }
   void setMaxCallFrameSize(unsigned S) { MaxCallFrameSize = S; }
+  bool getEmitNOAT() const { return EmitNOAT; }
+  void setEmitNOAT() { EmitNOAT = true; }
 };
 
 } // end of namespace llvm
