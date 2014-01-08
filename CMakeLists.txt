@@ -107,6 +107,7 @@ set(LLVM_ALL_TARGETS
   Hexagon
   Mips
   MSP430
+  Nios2
   NVPTX
   PowerPC
   R600
